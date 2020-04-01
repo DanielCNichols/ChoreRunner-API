@@ -289,7 +289,7 @@ householdsRouter
             householdId,
             member.id
           );
-          member.task = tasklist;
+          member.tasks = tasklist;
         }
         return memList
       };
