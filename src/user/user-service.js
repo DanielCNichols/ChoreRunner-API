@@ -43,18 +43,16 @@ const UserService = {
     };
   },
   getUserAccount(db, id) {
-    return (
-      db
-        .select(
-          'users.name as user',
-          'households.id as householdId',
-          'households.name as housename'
-        )
-        .from('users')
-        .join('households', 'households.user_id', '=', 'users.id')
-        .where('users.id', id)
-        .groupBy('user', 'householdId', 'housename')
-    );
+    return db
+      .select(
+        'users.name as user',
+        'households.id as householdId',
+        'households.name as housename'
+      )
+      .from('users')
+      .join('households', 'households.user_id', '=', 'users.id')
+      .where('users.id', id)
+      .groupBy('user', 'householdId', 'housename');
   },
 };
 

@@ -42,6 +42,8 @@ const HouseholdsService = {
       .from('households')
       .where('user_id', id);
   },
+
+  //Trying to get a list of tasks for each member.
   getTasksForAll(db, household_id) {
     return db
       .select(
@@ -55,7 +57,7 @@ const HouseholdsService = {
         'status'
       )
       .from('tasks')
-      .rightJoin('members', 'members.id', 'tasks.member_id')
+      .leftJoin('members', 'members.id', 'tasks.member_id')
       .where('members.household_id', household_id);
   },
   getCompletedTasks(db, household_id, status) {
@@ -81,12 +83,14 @@ const HouseholdsService = {
       .delete()
       .returning('*');
   },
+
   getAllMembers(db, id) {
     return db
       .select('*')
       .from('members')
-      .where('household_id', id);
+      .where('household_id', id)
   },
+
   getMemberById(db, id) {
     return db
       .select('*')

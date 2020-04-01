@@ -7,7 +7,7 @@ const { NODE_ENV } = require('./config');
 const authRouter = require('./auth/auth-router');
 const userRouter = require('./user/user-router');
 const membersAuthRouter = require('./auth-members/members-auth');
-const membersRouter = require('./members/members-router')
+const membersRouter = require('./members/members-router');
 
 const householdsRouter = require('./households/households-router');
 
@@ -19,19 +19,15 @@ app.use(morgan(morganSetting));
 app.use(helmet());
 app.use(
   cors({
-    origin: CLIENT_ORIGIN
+    origin: CLIENT_ORIGIN,
   })
 );
-
-app.get('/', (req, res) => {
-  res.send('Hallo, Textbaustein!');
-});
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/households', householdsRouter);
 app.use('/api/membersAuth', membersAuthRouter);
-app.use('/api/members', membersRouter)
+app.use('/api/members', membersRouter);
 
 app.use(function errorHandler(error, req, res, next) {
   let response;

@@ -3,14 +3,13 @@ const path = require('path');
 const { requireAuth } = require('../middleware/jwt-auth');
 const HouseholdsService = require('./households-service');
 const { requireMemberAuth } = require('../middleware/member-jwt');
-const MembersService = require('../members/members-service')
+const MembersService = require('../members/members-service');
 const xss = require('xss');
-
 
 const householdsRouter = express.Router();
 const jsonBodyParser = express.json();
 
-//Post creates a new household. 
+//Post creates a new household.
 householdsRouter
   .route('/')
   .all(requireAuth)
@@ -44,24 +43,23 @@ householdsRouter
     }
   })
 
-  //Retrieves a user's household list 
+  //Retrieves a user's household list
   .get((req, res, next) => {
     const user_id = req.user.id;
 
-    return (
-      HouseholdsService.getAllHouseholds(req.app.get('db'), user_id)
-        .then(households => {
-          return res.json(households.map(HouseholdsService.serializeHousehold));
-        })
-        .catch(next)
-    );
+    return HouseholdsService.getAllHouseholds(req.app.get('db'), user_id)
+      .then(households => {
+        return res.json(households.map(HouseholdsService.serializeHousehold));
+      })
+      .catch(next);
   });
 
-//GET: Fetches all members of a household. 
+//GET: Fetches all members of a household.
 householdsRouter
   .route('/members')
   .all(requireAuth)
   .get((req, res, next) => {
+    console.log('hit endpoint');
     const user_id = req.user.id;
     return HouseholdsService.getAllMembersAllHouseholds(
       req.app.get('db'),
@@ -82,12 +80,13 @@ householdsRouter
             };
           }
         });
+        console.log(result);
         return res.json(result);
       })
       .catch(next);
   });
 
-  //POST: Creates a new task for a household .
+//POST: Creates a new task for a household.
 householdsRouter
   .route('/:householdId/tasks')
   .all(requireAuth)
@@ -98,7 +97,7 @@ householdsRouter
     if (!title || !member_id || !points) {
       return res.status(400).json({
         error: {
-          message: 'Missing task name, member id or points in request body',
+          message: 'Task name, points, and member are required.',
         },
       });
     }
@@ -116,13 +115,14 @@ householdsRouter
       .then(result => {
         res
           .status(201)
-          .location(`/api/households/${newTask.user_id}/tasks`)
+          // .location(`/api/households/${newTask.user_id}/tasks`)
           .json(result[0]);
       })
       .catch(next);
   })
 
-  //Gets all the tasks for a household, grouped by member. 
+  //Gets all the tasks for a household, grouped by member.
+  //GET ALL TASKS BY MEMBER
   .get((req, res, next) => {
     const { householdId } = req.params;
 
@@ -135,7 +135,7 @@ householdsRouter
               title: task.title,
               id: task.id,
               points: task.points,
-              status: task.status
+              status: task.status,
             });
           } else {
             result[task.member_id] = {
@@ -143,7 +143,14 @@ householdsRouter
               name: task.name,
               username: task.username,
               total_score: task.total_score,
-              tasks: [{ title: task.title, id: task.id, points: task.points, status: task.status }],
+              tasks: [
+                {
+                  title: task.title,
+                  id: task.id,
+                  points: task.points,
+                  status: task.status,
+                },
+              ],
             };
           }
         });
@@ -152,10 +159,9 @@ householdsRouter
       .catch(next);
   })
 
-  //PATCH: Updates points and title for each task. 
+  //PATCH: Updates points and title for each task.
   .patch(jsonBodyParser, (req, res, next) => {
     if (req.body.method === 'points') {
-      
       HouseholdsService.updateTaskPoints(
         req.app.get('db'),
         req.body.id,
@@ -181,14 +187,14 @@ householdsRouter
         .catch(next);
     }
 
-    if(!req.body.method) {
+    if (!req.body.method) {
       return res.status(400).json({
-        error: { message: `Request body must contain title or points.` }
-      })
+        error: { message: `Request body must contain title or points.` },
+      });
     }
   });
 
-//GET: fetches all completed tasks. 
+//GET: fetches all completed tasks.
 householdsRouter
   .route('/:householdId/tasks/status')
   .all(requireAuth)
@@ -221,7 +227,7 @@ householdsRouter
       .catch(next);
   });
 
-//GET: FETCHES A MEMBER'S TASKS FOR THE DASH BOARD  
+//GET: FETCHES A MEMBER'S TASKS FOR THE DASH BOARD
 householdsRouter
   .route('/householdId/members/memberId/tasks')
   .all(requireMemberAuth)
@@ -240,7 +246,7 @@ householdsRouter
   //This updates the task status to "completed"  when member clicks completed.
   .patch(jsonBodyParser, (req, res, next) => {
     const { taskId } = req.body;
-    (taskId);
+    taskId;
     HouseholdsService.completeTask(
       req.app.get('db'),
       req.member.id,
@@ -253,18 +259,50 @@ householdsRouter
       .catch(next);
   });
 
-  //GET: RETRIEVES ALL MEMBERS OF A HOUSEHOLD 
+// .then(members => {
+//   console.log(members)
+//   return res.json(members);
+// })
+// .catch(next);
+//GET: RETRIEVES ALL MEMBERS OF A HOUSEHOLD
+
+//This returns an array of all member information. We want a key with tasks in an array form.
 householdsRouter
   .route('/:householdId/members')
-  .all(requireAuth)
-  .get((req, res, next) => {
+  // .all(requireAuth)
+  .get(requireAuth, async (req, res, next) => {
     const { householdId } = req.params;
+    try {
+      let membersList = await HouseholdsService.getAllMembers(
+        req.app.get('db'),
+        householdId
+      );
 
-    return HouseholdsService.getAllMembers(req.app.get('db'), householdId)
-      .then(tasks => {
-        return res.json(tasks);
-      })
-      .catch(next);
+      //Iterate over the membersList, and make a call to append task list to the membersList.
+
+      const tasks = async () => {
+        let memList = membersList
+        // console.log("tasks are running")
+        for (let member of memList) {
+          let tasklist = await HouseholdsService.getMemberTasks(
+            req.app.get('db'),
+            householdId,
+            member.id
+          );
+          member.task = tasklist;
+        }
+        return memList
+      };
+
+      //Call the async function to make the magic happen...
+      let members = await tasks();
+
+      console.log("this is the final result", members)
+
+      res.status(200).json(membersList);
+    } catch (error) {
+      next(error);
+    }
   })
 
   //ADDS A MEMBER TO A HOUSEHOLD
@@ -280,11 +318,10 @@ householdsRouter
         });
 
     try {
-      const passwordError = MembersService.validatePassword(password)
+      const passwordError = MembersService.validatePassword(password);
 
-      if (passwordError)
-        return res.status(400).json({ error: passwordError })
-      
+      if (passwordError) return res.status(400).json({ error: passwordError });
+
       const hasMemberwithMemberName = await HouseholdsService.hasMemberwithMemberName(
         req.app.get('db'),
         username
@@ -381,9 +418,8 @@ householdsRouter
     }
   });
 
-
-//FOR DELETING AND UPDATING A SINGLE HOUSEHOLD. 
-  householdsRouter
+//FOR DELETING AND UPDATING A SINGLE HOUSEHOLD.
+householdsRouter
   .route('/:householdId')
   .all(requireAuth)
   .all(checkHouseholdExists)
@@ -432,9 +468,8 @@ householdsRouter
       .catch(next);
   })
 
-  //RESET BUTTON ROUTE. RESET ALL THE SCORES AND LEVELS FOR EVERYONE IN A HOUSE. 
+  //RESET BUTTON ROUTE. RESET ALL THE SCORES AND LEVELS FOR EVERYONE IN A HOUSE.
   .patch(requireAuth, jsonBodyParser, async (req, res, next) => {
-
     let { household_id } = req.body;
 
     try {
@@ -482,7 +517,7 @@ householdsRouter
     }
   })
 
-  //THIS IS TECHNICALLY A PARENT APPROVAL ACTION. 
+  //THIS IS TECHNICALLY A PARENT APPROVAL ACTION.
   .patch(jsonBodyParser, async (req, res, next) => {
     const { points, memberId, newStatus } = req.body;
     const { taskId } = req.params;
