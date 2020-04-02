@@ -36,6 +36,16 @@ const HouseholdsService = {
       .andWhere('tasks.member_id', memberId)
       .groupBy('tasks.id', 'tasks.title', 'tasks.points', 'status');
   },
+
+
+  //Should return all the tasks for a member
+  getAllMemberTasks(db, householdId, memberId) {
+    return db
+    .select('*')
+    .from('tasks')
+    .where('tasks.household_id', householdId)
+    .andWhere('tasks.member_id', memberId)
+  }, 
   getAllHouseholds(db, id) {
     return db
       .select('*')
@@ -128,22 +138,17 @@ const HouseholdsService = {
       parent_id: member.user_id,
     };
   },
-  updateTaskPoints(db, id, newPoints) {
+  updateTask(db, id, newPoints, newTitle) {
     return db
       .from('tasks')
       .where('id', id)
       .update({
         points: newPoints,
-      });
+        title: newTitle
+      })
+      .returning('*');
   },
-  updateTaskTitle(db, id, newTitle) {
-    return db
-      .from('tasks')
-      .where('id', id)
-      .update({
-        title: newTitle,
-      });
-  },
+
   updateMember(db, id, updatedMember) {
     return db('members')
       .where({ id })

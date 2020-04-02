@@ -59,7 +59,6 @@ householdsRouter
   .route('/members')
   .all(requireAuth)
   .get((req, res, next) => {
-    console.log('hit endpoint');
     const user_id = req.user.id;
     return HouseholdsService.getAllMembersAllHouseholds(
       req.app.get('db'),
@@ -80,7 +79,6 @@ householdsRouter
             };
           }
         });
-        console.log(result);
         return res.json(result);
       })
       .catch(next);
@@ -161,37 +159,19 @@ householdsRouter
 
   //PATCH: Updates points and title for each task.
   .patch(jsonBodyParser, (req, res, next) => {
-    if (req.body.method === 'points') {
-      HouseholdsService.updateTaskPoints(
-        req.app.get('db'),
-        req.body.id,
-        req.body.points
-      )
-        .then(() => {
-          res.status(200).send('points updated');
-        })
-        .catch(next);
-    }
+    let { points, title, id } = req.body;
 
-    if (req.body.method === 'title') {
-      const { title } = req.body;
-
-      HouseholdsService.updateTaskTitle(
-        req.app.get('db'),
-        req.body.id,
-        xss(title)
-      )
-        .then(() => {
-          res.status(200).send('title updated');
-        })
-        .catch(next);
-    }
-
-    if (!req.body.method) {
+    if (!points || !title) {
       return res.status(400).json({
-        error: { message: `Request body must contain title or points.` },
+        error: `Points and title are required`,
       });
     }
+
+    HouseholdsService.updateTask(req.app.get('db'), id, points, title)
+      .then((updatedTask) => {
+        res.status(200).send(updatedTask[0]);
+      })
+      .catch(next);
   });
 
 //GET: fetches all completed tasks.
@@ -260,7 +240,6 @@ householdsRouter
   });
 
 // .then(members => {
-//   console.log(members)
 //   return res.json(members);
 // })
 // .catch(next);
@@ -281,23 +260,20 @@ householdsRouter
       //Iterate over the membersList, and make a call to append task list to the membersList.
 
       const tasks = async () => {
-        let memList = membersList
-        // console.log("tasks are running")
+        let memList = membersList;
         for (let member of memList) {
-          let tasklist = await HouseholdsService.getMemberTasks(
+          let tasklist = await HouseholdsService.getAllMemberTasks(
             req.app.get('db'),
             householdId,
             member.id
           );
           member.tasks = tasklist;
         }
-        return memList
+        return memList;
       };
 
       //Call the async function to make the magic happen...
       let members = await tasks();
-
-      console.log("this is the final result", members)
 
       res.status(200).json(membersList);
     } catch (error) {
