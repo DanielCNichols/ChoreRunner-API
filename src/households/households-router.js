@@ -5,6 +5,7 @@ const HouseholdsService = require('./households-service');
 const { requireMemberAuth } = require('../middleware/member-jwt');
 const MembersService = require('../members/members-service');
 const xss = require('xss');
+const { getAllMemberTasks } = require('./households-service');
 
 const householdsRouter = express.Router();
 const jsonBodyParser = express.json();
@@ -37,6 +38,7 @@ householdsRouter
         user_id: house.user_id,
         id: house.id,
         name: xss(house.name),
+        members: [], //no members added to new house
       });
     } catch (error) {
       next(error);
@@ -44,14 +46,46 @@ householdsRouter
   })
 
   //Retrieves a user's household list
-  .get((req, res, next) => {
-    const user_id = req.user.id;
+  // !Refactoring to grab a list of households, members, and tasks. ALL OF IT.
 
-    return HouseholdsService.getAllHouseholds(req.app.get('db'), user_id)
-      .then(households => {
-        return res.json(households.map(HouseholdsService.serializeHousehold));
-      })
-      .catch(next);
+  // const user_id = req.user.id;
+
+  // return HouseholdsService.getAllHouseholds(req.app.get('db'), user_id)
+  //   .then(households => {
+  //     return res.json(households.map(HouseholdsService.serializeHousehold));
+  //   })
+  //   .catch(next);
+
+  .get(async (req, res, next) => {
+    try {
+      const user_id = req.user.id;
+
+      let households = await HouseholdsService.getAllHouseholds(
+        req.app.get('db'),
+        user_id
+      );
+
+      //get all the members in the household and append;
+
+      let membersQueries = households.map(house => {
+        return HouseholdsService.getMembersInHousehold(
+          req.app.get('db'),
+          house.id
+        );
+      });
+
+      let members = await Promise.all(membersQueries);
+
+      households.forEach((house, idx) => {
+        house.members = members[idx];
+      });
+
+      res.send(households);
+
+      //get all their tasks and append;
+    } catch (error) {
+      next(error);
+    }
   });
 
 //GET: Fetches all members of a household.
@@ -168,7 +202,7 @@ householdsRouter
     }
 
     HouseholdsService.updateTask(req.app.get('db'), id, points, title)
-      .then((updatedTask) => {
+      .then(updatedTask => {
         res.status(200).send(updatedTask[0]);
       })
       .catch(next);
@@ -207,21 +241,59 @@ householdsRouter
       .catch(next);
   });
 
-//GET: FETCHES A MEMBER'S TASKS FOR THE DASH BOARD
+//Get: Retrieves all information for the memberDashboard.
+//!will use this for the time being, but this entire set up needs to be refactored.
 householdsRouter
   .route('/householdId/members/memberId/tasks')
   .all(requireMemberAuth)
-  .get((req, res, next) => {
-    HouseholdsService.getMemberTasks(
-      req.app.get('db'),
-      req.member.household_id,
-      req.member.id
-    )
+  .get(async (req, res, next) => {
+    try {
+      //Get all assignedTasks
+      let getTasks = HouseholdsService.getAssignedTasks(
+        req.app.get('db'),
+        req.member.household_id,
+        req.member.id
+      );
 
-      .then(result => {
-        res.status(201).json(result);
-      })
-      .catch(next);
+      //Get levels and badge for the badge component
+      let getUserStats = HouseholdsService.getLevels(
+        req.app.get('db'),
+        req.member.id
+      );
+
+      //get leaderboard info
+      let getRankings = HouseholdsService.getHouseholdScores(
+        req.app.get('db'),
+        req.member.household_id
+      );
+
+      let [assignedTasks, userStats, rankings] = await Promise.all([
+        getTasks,
+        getUserStats,
+        getRankings,
+      ]);
+
+      if (userStats.total_score >= 100) {
+        userStats.toNextLevel = 'Max';
+      } else {
+        //Get this out of here before deploying
+        let toNextLvl = (userStats.level_id * 10 - userStats.total_score) % 10;
+
+        if (toNextLvl === 0) {
+          userStats.toNextLevel = 10;
+        } else {
+          userStats.toNextLevel = toNextLvl;
+        }
+      }
+
+      res.status(200).send({
+        assignedTasks,
+        userStats,
+        rankings,
+      });
+    } catch (error) {
+      next(error);
+    }
   })
   //This updates the task status to "completed"  when member clicks completed.
   .patch(jsonBodyParser, (req, res, next) => {
@@ -239,41 +311,46 @@ householdsRouter
       .catch(next);
   });
 
-// .then(members => {
-//   return res.json(members);
-// })
-// .catch(next);
-//GET: RETRIEVES ALL MEMBERS OF A HOUSEHOLD
-
 //This returns an array of all member information. We want a key with tasks in an array form.
 householdsRouter
   .route('/:householdId/members')
-  // .all(requireAuth)
+  .all(requireAuth)
   .get(requireAuth, async (req, res, next) => {
     const { householdId } = req.params;
     try {
-      let membersList = await HouseholdsService.getAllMembers(
+      let membersList = await HouseholdsService.getMembersInHousehold(
         req.app.get('db'),
         householdId
       );
 
       //Iterate over the membersList, and make a call to append task list to the membersList.
 
-      const tasks = async () => {
-        let memList = membersList;
-        for (let member of memList) {
-          let tasklist = await HouseholdsService.getAllMemberTasks(
-            req.app.get('db'),
-            householdId,
-            member.id
-          );
-          member.tasks = tasklist;
-        }
-        return memList;
-      };
+      let assignedQueries = membersList.map(member => {
+        return HouseholdsService.getAssignedTasks(
+          req.app.get('db'),
+          householdId,
+          member.id
+        );
+      });
 
-      //Call the async function to make the magic happen...
-      let members = await tasks();
+      let status = 'completed';
+
+      let completedQueries = membersList.map(member => {
+        return HouseholdsService.getCompletedTasks(
+          req.app.get('db'),
+          householdId,
+          member.id,
+          status
+        );
+      });
+
+      let assigned = await Promise.all(assignedQueries);
+      let completed = await Promise.all(completedQueries);
+
+      membersList.forEach((member, idx) => {
+        member.assignedTasks = assigned[idx];
+        member.completedTasks = completed[idx];
+      });
 
       res.status(200).json(membersList);
     } catch (error) {
@@ -282,6 +359,7 @@ householdsRouter
   })
 
   //ADDS A MEMBER TO A HOUSEHOLD
+  //!This is slow.
   .post(jsonBodyParser, async (req, res, next) => {
     const { password, username, name } = req.body;
     const user_id = req.user.id;
@@ -325,15 +403,23 @@ householdsRouter
       //This must run after HouseholdService.insertMember, because we need the new member Id.
       await HouseholdsService.setMemberLevel(req.app.get('db'), member.id);
 
+      //Get the newly added member, with level and points
+
+      let result = await HouseholdsService.getMemberById(
+        req.app.get('db'),
+        member.id
+      );
+
       res
         .status(201)
         .location(path.posix.join(req.originalUrl, `/${member.id}`))
-        .json(HouseholdsService.serializeMember(member));
+        .json(HouseholdsService.serializeMember(result));
     } catch (error) {
       next(error);
     }
   })
   //delete members
+  //!Take a good look at this one and how the routes are laid out. Why do you need a household ID to delete a member? Why are we getting this id from the body and not the route? Gotta be a better way.
   .delete(jsonBodyParser, (req, res, next) => {
     const { member_id } = req.body;
     HouseholdsService.deleteMember(req.app.get('db'), member_id)
@@ -367,10 +453,14 @@ householdsRouter
         return res.status(400).json({ error: `Username already taken.` });
       }
 
-      //update password needs to be rehashed
-      const hashedPassword = await HouseholdsService.hashPassword(password);
+      if (password) {
+        //update password needs to be rehashed
+        const hashedPassword = await HouseholdsService.hashPassword(password);
 
-      const updatedMember = { name, username, password: hashedPassword };
+        const updatedMember = { name, username, password: hashedPassword };
+      } else {
+        updatedMember = { name, username };
+      }
 
       //Check to see that there are actually values passed to be updated
       const numberOfValues = Object.values(updatedMember).filter(Boolean)
@@ -382,10 +472,15 @@ householdsRouter
         });
       }
 
-      const updated = await HouseholdsService.updateMember(
+      await HouseholdsService.updateMember(
         req.app.get('db'),
         memberId,
         updatedMember
+      );
+
+      let updated = await HouseholdsService.getMemberById(
+        req.app.get('db'),
+        memberId
       );
 
       return res.status(201).json(updated);
@@ -398,7 +493,7 @@ householdsRouter
 householdsRouter
   .route('/:householdId')
   .all(requireAuth)
-  .all(checkHouseholdExists)
+  // .all(checkHouseholdExists)
   .delete(jsonBodyParser, (req, res, next) => {
     const { householdId } = req.params;
 
@@ -408,7 +503,7 @@ householdsRouter
       })
       .catch(next);
   })
-  .patch(jsonBodyParser, (req, res, next) => {
+  .patch(jsonBodyParser, async (req, res, next) => {
     let user_id = req.user.id;
     const { householdId } = req.params;
     const { name } = req.body;
@@ -423,10 +518,14 @@ householdsRouter
         },
       });
     }
-    HouseholdsService.updateHouseholdName(db, householdId, newHousehold)
-      .then(() => HouseholdsService.getAllHouseholds(db, user_id))
-      .then(result => res.json(result))
-      .catch(next);
+
+    let [updated] = await HouseholdsService.updateHouseholdName(
+      db,
+      householdId,
+      newHousehold
+    );
+
+    res.send(updated);
   });
 
 //GET: GET SCORES FOR HOUSEHOLD => LEADERBOARD
@@ -495,12 +594,11 @@ householdsRouter
 
   //THIS IS TECHNICALLY A PARENT APPROVAL ACTION.
   .patch(jsonBodyParser, async (req, res, next) => {
-    const { points, memberId, newStatus } = req.body;
+    const { points, member_id, newStatus } = req.body;
+
     const { taskId } = req.params;
 
     try {
-      //This handles returned tasks for diaspproval and kicks it
-      // back to the child/member
       if (newStatus === 'assigned') {
         const task = await HouseholdsService.parentReassignTaskStatus(
           req.app.get('db'),
@@ -509,54 +607,64 @@ householdsRouter
         );
         return res.status(201).json(task);
       }
-      //Handles Approval
+
+      let updateTaskStatus;
+      let levelUpdate;
+
       if (newStatus === 'approved') {
-        await HouseholdsService.parentApproveTaskStatus(
+        console.log('in here');
+        updateTaskStatus = HouseholdsService.parentApproveTaskStatus(
           req.app.get('db'),
           taskId
         );
       }
 
-      //get the member's current points/level info
-      const userScores = await HouseholdsService.getLevels(
+      const { name, total_score, level_id } = await HouseholdsService.getLevels(
         req.app.get('db'),
-        memberId
+        member_id
       );
 
-      let { total_score, level_id } = userScores;
       let newScore = total_score + points;
-      let newLevel = level_id;
+      let newLevel = Math.floor(newScore / 10) + 1;
+      let pointsToNextLevel = Math.abs((newScore % 10) - 10);
 
-      if (newScore >= level_id * 10) {
-        newLevel = level_id + 1;
-      }
+      //first, update the score
+      let scoreUpdate = HouseholdsService.updatePoints(
+        req.app.get('db'),
+        member_id,
+        newScore
+      );
 
-      if (newLevel > 10) {
-        await HouseholdsService.updatePoints(
+      //Then, check to see if we need to update the level
+
+      if (newLevel > level_id && level_id <= 10 && newLevel <= 10) {
+        levelUpdate = HouseholdsService.updateLevel(
           req.app.get('db'),
-          memberId,
-          newScore
-        );
-      } else {
-        await HouseholdsService.updateLevel(
-          req.app.get('db'),
-          memberId,
+          member_id,
           newLevel
         );
-
-        await HouseholdsService.updatePoints(
-          req.app.get('db'),
-          memberId,
-          newScore
-        );
       }
+
+      //Update everything
+
+      await Promise.all([updateTaskStatus, scoreUpdate, levelUpdate]);
+
+      //Then, we need to format the points to next level
+      if (newLevel >= 10) {
+        pointsToNextLevel = 'MAX';
+      } else if (pointsToNextLevel === 0) {
+        pointsToNextLevel = 10;
+      }
+
+      console.log('newLevel', newLevel);
+      console.log('newScore', newScore);
+      console.log('pointsToNext', pointsToNextLevel);
 
       res.status(200).json({
         level_id: newLevel,
-        name: userScores.name,
+        name: name,
         total_score: newScore,
-        badge: userScores.badge,
-        taskId,
+        toNextLevel: pointsToNextLevel,
       });
     } catch (error) {
       next(error);

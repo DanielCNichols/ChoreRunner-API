@@ -27,6 +27,59 @@ const HouseholdsService = {
       .from('members')
       .where('user_id', user_id);
   },
+
+  getMembersInHousehold(db, household_id) {
+    return db
+      .select(
+        'members.id',
+        'members.name',
+        'members.username',
+        'members.user_id',
+        'members.household_id',
+        'members.total_score',
+        'levels_members.level_id'
+      )
+      .from('members')
+      .where('household_id', household_id)
+      .join('levels_members', 'levels_members.member_id', '=', 'members.id')
+      .groupBy(
+        'members.id',
+        'members.name',
+        'members.username',
+        'members.user_id',
+        'members.household_id',
+        'members.total_score',
+        'levels_members.level_id'
+      );
+  },
+
+  getMemberById(db, memberId) {
+    return db
+      .select(
+        'members.id',
+        'members.name',
+        'members.username',
+        'members.user_id',
+        'members.household_id',
+        'members.total_score',
+        'levels_members.level_id'
+      )
+      .from('members')
+      .where('members.id', memberId)
+      .join('levels_members', 'levels_members.member_id', '=', 'members.id')
+      .groupBy(
+        'members.id',
+        'members.name',
+        'members.username',
+        'members.user_id',
+        'members.household_id',
+        'members.total_score',
+        'levels_members.level_id'
+      )
+      .first();
+  },
+
+  //! This would be for the member dashboard?
   getMemberTasks(db, householdId, memberId) {
     return db
       .select('tasks.id', 'tasks.title', 'tasks.points', 'status')
@@ -37,15 +90,32 @@ const HouseholdsService = {
       .groupBy('tasks.id', 'tasks.title', 'tasks.points', 'status');
   },
 
+  getAssignedTasks(db, householdId, memberId) {
+    return db
+      .select('*')
+      .from('tasks')
+      .where('tasks.household_id', householdId)
+      .andWhere('tasks.member_id', memberId)
+      .andWhere('tasks.status', 'assigned');
+  },
+
+  getCompletedTasks(db, householdId, memberId, status) {
+    return db
+      .select('*')
+      .from('tasks')
+      .where('tasks.household_id', householdId)
+      .andWhere('tasks.member_id', memberId)
+      .andWhere('tasks.status', 'completed');
+  },
 
   //Should return all the tasks for a member
   getAllMemberTasks(db, householdId, memberId) {
     return db
-    .select('*')
-    .from('tasks')
-    .where('tasks.household_id', householdId)
-    .andWhere('tasks.member_id', memberId)
-  }, 
+      .select('*')
+      .from('tasks')
+      .where('tasks.household_id', householdId)
+      .andWhere('tasks.member_id', memberId);
+  },
   getAllHouseholds(db, id) {
     return db
       .select('*')
@@ -70,13 +140,14 @@ const HouseholdsService = {
       .leftJoin('members', 'members.id', 'tasks.member_id')
       .where('members.household_id', household_id);
   },
-  getCompletedTasks(db, household_id, status) {
-    return db
-      .select('*')
-      .from('tasks')
-      .where('household_id', household_id)
-      .andWhere('status', status);
-  },
+
+  // getCompletedTasks(db, household_id, status) {
+  //   return db
+  //     .select('*')
+  //     .from('tasks')
+  //     .where('household_id', household_id)
+  //     .andWhere('status', status);
+  // },
   parentReassignTaskStatus(db, taskId, newStatus) {
     return db('tasks')
       .where('id', taskId)
@@ -98,16 +169,16 @@ const HouseholdsService = {
     return db
       .select('*')
       .from('members')
-      .where('household_id', id)
+      .where('household_id', id);
   },
 
-  getMemberById(db, id) {
-    return db
-      .select('*')
-      .from('members')
-      .where({ id })
-      .first();
-  },
+  // getMemberById(db, id) {
+  //   return db
+  //     .select('*')
+  //     .from('members')
+  //     .where({ id })
+  //     .first();
+  // },
   hasMemberwithMemberName(db, username) {
     return db('members')
       .where({ username })
@@ -129,13 +200,16 @@ const HouseholdsService = {
   hashPassword(password) {
     return bcrypt.hash(password, 12);
   },
+
   serializeMember(member) {
     return {
       id: member.id,
       name: xss(member.name),
       username: xss(member.username),
       household_id: member.household_id,
-      parent_id: member.user_id,
+      user_id: member.user_id,
+      total_score: member.total_score,
+      level_id: member.level_id,
     };
   },
   updateTask(db, id, newPoints, newTitle) {
@@ -144,7 +218,7 @@ const HouseholdsService = {
       .where('id', id)
       .update({
         points: newPoints,
-        title: newTitle
+        title: newTitle,
       })
       .returning('*');
   },
@@ -181,8 +255,10 @@ const HouseholdsService = {
     return db
       .from('households')
       .where({ id })
-      .update(newHousehold);
+      .update(newHousehold)
+      .returning('*');
   },
+
   getById(db, householdId) {
     return db
       .from('households')
