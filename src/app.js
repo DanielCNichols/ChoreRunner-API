@@ -11,6 +11,8 @@ const membersRouter = require('./members/members-router');
 
 const householdsRouter = require('./households/households-router');
 
+const tasksRouter = require('./tasks/tasks-router');
+
 const app = express();
 
 const { CLIENT_ORIGIN } = require('./config');
@@ -27,7 +29,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/households', householdsRouter);
 app.use('/api/membersAuth', membersAuthRouter);
-app.use('/api/members', membersRouter);
+app.use('/api/tasks', tasksRouter);
+// app.use('/api/members', membersRouter);
 
 app.use(function errorHandler(error, req, res, next) {
   let response;

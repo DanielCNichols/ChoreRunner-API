@@ -19,7 +19,8 @@ const HouseholdsService = {
     return db
       .insert(newTask)
       .into('tasks')
-      .returning('*');
+      .returning('*')
+      .then(([res]) => res);
   },
   getAllMembersAllHouseholds(db, user_id) {
     return db
@@ -99,7 +100,7 @@ const HouseholdsService = {
       .andWhere('tasks.status', 'assigned');
   },
 
-  getCompletedTasks(db, householdId, memberId, status) {
+  getCompletedTasks(db, householdId, memberId) {
     return db
       .select('*')
       .from('tasks')
@@ -123,6 +124,14 @@ const HouseholdsService = {
       .where('user_id', id);
   },
 
+  getTaskById(db, id) {
+    return db
+      .select('*')
+      .from('tasks')
+      .where('id', id)
+      .first();
+  },
+
   //Trying to get a list of tasks for each member.
   getTasksForAll(db, household_id) {
     return db
@@ -141,20 +150,14 @@ const HouseholdsService = {
       .where('members.household_id', household_id);
   },
 
-  // getCompletedTasks(db, household_id, status) {
-  //   return db
-  //     .select('*')
-  //     .from('tasks')
-  //     .where('household_id', household_id)
-  //     .andWhere('status', status);
-  // },
-  parentReassignTaskStatus(db, taskId, newStatus) {
+  parentReassignTaskStatus(db, taskId) {
     return db('tasks')
       .where('id', taskId)
       .update({
-        status: newStatus,
+        status: 'assigned',
       })
-      .returning('*');
+      .returning('*')
+      .then(([task]) => task);
   },
   //Daniel: Changed to just update and delete task since we have
   //method for update points already in endpoint.
@@ -162,7 +165,8 @@ const HouseholdsService = {
     return db('tasks')
       .where('id', taskId)
       .delete()
-      .returning('*');
+      .returning('*')
+      .then(([task]) => task);
   },
 
   getAllMembers(db, id) {
@@ -210,17 +214,16 @@ const HouseholdsService = {
       user_id: member.user_id,
       total_score: member.total_score,
       level_id: member.level_id,
+      pointsToNextLevel: member.pointsToNextLevel,
     };
   },
-  updateTask(db, id, newPoints, newTitle) {
+  updateTask(db, id, updated) {
     return db
       .from('tasks')
       .where('id', id)
-      .update({
-        points: newPoints,
-        title: newTitle,
-      })
-      .returning('*');
+      .update(updated)
+      .returning('*')
+      .then(([res]) => res);
   },
 
   updateMember(db, id, updatedMember) {
@@ -241,7 +244,9 @@ const HouseholdsService = {
       .where('tasks.member_id', member_id)
       .andWhere('tasks.household_id', household_id)
       .andWhere('tasks.id', taskId)
-      .update('status', 'completed');
+      .update('status', 'completed')
+      .returning('*')
+      .then(([task]) => task);
   },
   //For patch method on router "/:id"
   serializeHousehold(household) {
@@ -249,6 +254,7 @@ const HouseholdsService = {
       id: household.id,
       name: xss(household.name),
       user_id: household.user_id,
+      members: [],
     };
   },
   updateHouseholdName(db, id, newHousehold) {

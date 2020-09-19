@@ -35,23 +35,23 @@ function makeHouseholdsArray() {
     {
       id: 1,
       name: 'household1',
-      user_id: 1
+      user_id: 1,
     },
     {
       id: 2,
       name: 'household2',
-      user_id: 1
+      user_id: 1,
     },
     {
       id: 3,
       name: 'household3',
-      user_id: 1
+      user_id: 1,
     },
     {
       id: 4,
       name: 'household4',
-      user_id: 1
-    }
+      user_id: 1,
+    },
   ];
 }
 
@@ -64,7 +64,7 @@ function makeMembersArray() {
       password: 'kid1',
       user_id: 1,
       household_id: 1,
-      total_score: 20
+      total_score: 20,
     },
     {
       id: 2,
@@ -73,7 +73,7 @@ function makeMembersArray() {
       password: 'kid2',
       user_id: 1,
       household_id: 1,
-      total_score: 5
+      total_score: 5,
     },
     {
       id: 3,
@@ -82,7 +82,7 @@ function makeMembersArray() {
       password: 'kid3',
       user_id: 1,
       household_id: 1,
-      total_score: 30
+      total_score: 30,
     },
     {
       id: 4,
@@ -91,7 +91,7 @@ function makeMembersArray() {
       password: 'kid4',
       user_id: 1,
       household_id: 1,
-      total_score: 0
+      total_score: 0,
     },
   ];
 }
@@ -105,7 +105,7 @@ function makeTasksArray() {
       user_id: 1,
       member_id: 1,
       points: 4,
-      status: 'assigned'
+      status: 'assigned',
     },
     {
       id: 2,
@@ -114,7 +114,7 @@ function makeTasksArray() {
       user_id: 1,
       member_id: 2,
       points: 3,
-      status: 'assigned'
+      status: 'assigned',
     },
     {
       id: 3,
@@ -123,7 +123,7 @@ function makeTasksArray() {
       user_id: 1,
       member_id: 3,
       points: 2,
-      status: 'completed'
+      status: 'completed',
     },
     {
       id: 4,
@@ -132,11 +132,42 @@ function makeTasksArray() {
       user_id: 1,
       member_id: 4,
       points: 1,
-      status: 'approved'
+      status: 'approved',
     },
   ];
 }
 
+function makeLevelsArray() {
+  return [
+    {
+      id: 1,
+      badge: 'badge1',
+    },
+    {
+      id: 2,
+      badge: 'badge2',
+    },
+    {
+      id: 3,
+      badge: 'badge3',
+    },
+  ];
+}
+
+function makeLevelsMembers() {
+  return [
+    {
+      id: 1,
+      member_id: 1,
+      level_id: 1,
+    },
+    {
+      id: 2,
+      member_id: 2,
+      level_id: 1,
+    },
+  ];
+}
 
 function makeExpectedHousehold(users, household) {
   const user = users.find(user => user.id === household.user_id);
@@ -144,7 +175,8 @@ function makeExpectedHousehold(users, household) {
   return {
     id: household.id,
     name: household.name,
-    user_id: household.user_id
+    user_id: household.user_id,
+    members: [],
   };
 }
 
@@ -160,7 +192,7 @@ function makeExpectedHouseholdTask(users, householdId, tasks) {
       user_id: task.user_id,
       member_id: task.member_id,
       points: task.points,
-      status: task.status
+      status: task.status,
     };
   });
 }
@@ -170,93 +202,106 @@ function makeExpectedHouseholdTask(users, householdId, tasks) {
 function seedUsers(db, users) {
   const preppedUsers = users.map(user => ({
     ...user,
-    password: bcrypt.hashSync(user.password, 1)
+    password: bcrypt.hashSync(user.password, 1),
   }));
 
-  return db.into('users').insert(preppedUsers)
+  return db
+    .into('users')
+    .insert(preppedUsers)
     .then(() =>
       // update the auto sequence to stay in sync
-      db.raw(
-        `SELECT setval('users_id_seq', ?)`,
-        [users[users.length - 1].id],
-      )
+      db.raw(`SELECT setval('users_id_seq', ?)`, [users[users.length - 1].id])
     );
 }
 
 function seedHouseholds(db, users, households) {
-  return db
-    .transaction(async trx => {
-      await seedUsers(trx, users);
-      await trx.into('households').insert(households);
-      await trx.raw(`SELECT setval('households_id_seq', ?)`,
-        [households[households.length - 1].id],
-      )
-    });
+  return db.transaction(async trx => {
+    await seedUsers(trx, users);
+    await trx.into('households').insert(households);
+    await trx.raw(`SELECT setval('households_id_seq', ?)`, [
+      households[households.length - 1].id,
+    ]);
+  });
 }
 
 // This only works if seedUsers and seedHouseholds has been run.
 function seedMembers(db, members) {
-  return db
-    .transaction(async trx => {
-      await trx.into('members').insert(members);
-      await trx.raw(
-        `SELECT setval('members_id_seq', ?)`,
-        [members[members.length - 1].id]
-      );
-    });
+  return db.transaction(async trx => {
+    await trx.into('members').insert(members);
+    await trx.raw(`SELECT setval('members_id_seq', ?)`, [
+      members[members.length - 1].id,
+    ]);
+  });
 }
 
 function seedTasks(db, tasks) {
-  return db
-    .transaction(async trx => {
-      await trx.into('tasks').insert(tasks);
-      await trx.raw(`SELECT setval('tasks_id_seq', ?)`,
-        [tasks[tasks.length - 1].id]
-      );
-    });
+  return db.transaction(async trx => {
+    await trx.into('tasks').insert(tasks);
+    await trx.raw(`SELECT setval('tasks_id_seq', ?)`, [
+      tasks[tasks.length - 1].id,
+    ]);
+  });
 }
 
-function seedChoresTables(db, users = [], households = [], members = [], tasks = []) {
-
+function seedChoresTables(
+  db,
+  users = [],
+  households = [],
+  members = [],
+  tasks = [],
+  levels = [],
+  levels_members = []
+) {
   return db.transaction(async trx => {
-
     await trx.into('users').insert(users);
-    await trx.raw(
-      `SELECT setval('users_id_seq', ?)`,
-      [users[users.length - 1].id],
-    );
+    await trx.raw(`SELECT setval('users_id_seq', ?)`, [
+      users[users.length - 1].id,
+    ]);
 
     if (households.length) {
       await trx.into('households').insert(households);
-      await trx.raw(
-        `SELECT setval('households_id_seq', ?)`,
-        [households[households.length - 1].id],
-      );
+      await trx.raw(`SELECT setval('households_id_seq', ?)`, [
+        households[households.length - 1].id,
+      ]);
     }
 
     if (members.length) {
       await trx.into('members').insert(members);
-      await trx.raw(
-        `SELECT setval('members_id_seq', ?)`,
-        [members[members.length - 1].id]
-      );
+      await trx.raw(`SELECT setval('members_id_seq', ?)`, [
+        members[members.length - 1].id,
+      ]);
     }
 
     if (tasks.length) {
       await trx.into('tasks').insert(tasks);
-      await trx.raw(`SELECT setval('tasks_id_seq', ?)`,
-        [tasks[tasks.length - 1].id]
-      );
+      await trx.raw(`SELECT setval('tasks_id_seq', ?)`, [
+        tasks[tasks.length - 1].id,
+      ]);
+    }
+
+    if (levels.length) {
+      await trx.into('levels').insert(levels);
+      await trx.raw(`SELECT setval('levels_id_seq', ?)`, [
+        levels[levels.length - 1].id,
+      ]);
+    }
+    if (levels_members.length) {
+      await trx.into('levels_members').insert(levels_members);
+      await trx.raw(`SELECT setval('levels_members_id_seq', ?)`, [
+        levels_members[levels_members.length - 1].id,
+      ]);
     }
   });
 }
 
 function cleanTables(db) {
   return db.transaction(async trx => {
-    await trx.raw(`TRUNCATE tasks RESTART IDENTITY CASCADE`)
-    await trx.raw(`TRUNCATE members RESTART IDENTITY CASCADE`)
-    await trx.raw(`TRUNCATE households RESTART IDENTITY CASCADE`)
-    await trx.raw(`TRUNCATE users RESTART IDENTITY CASCADE`)
+    await trx.raw(`TRUNCATE tasks RESTART IDENTITY CASCADE`);
+    await trx.raw(`TRUNCATE members RESTART IDENTITY CASCADE`);
+    await trx.raw(`TRUNCATE households RESTART IDENTITY CASCADE`);
+    await trx.raw(`TRUNCATE users RESTART IDENTITY CASCADE`);
+    await trx.raw(`TRUNCATE levels RESTART IDENTITY CASCADE`);
+    await trx.raw(`TRUNCATE levels_members RESTART IDENTITY CASCADE`);
   });
 }
 
@@ -273,7 +318,16 @@ function makeFixtures() {
   const testHouseholds = makeHouseholdsArray();
   const testMembers = makeMembersArray();
   const testTasks = makeTasksArray();
-  return { testUsers, testHouseholds, testMembers, testTasks };
+  const testLevels = makeLevelsArray();
+  const testLevels_members = makeLevelsMembers();
+  return {
+    testUsers,
+    testHouseholds,
+    testMembers,
+    testTasks,
+    testLevels,
+    testLevels_members,
+  };
 }
 
 /* ---XSS test helpers---*/
@@ -283,13 +337,13 @@ function makeMaliciousHousehold(user) {
     maliciousHousehold: {
       id: 1,
       name: 'A Foul Name <script>alert("xss");</script>',
-      user_id: user.id
+      user_id: user.id,
     },
     expectedHousehold: {
       id: 1,
       name: 'A Foul Name &lt;script&gt;alert("xss");&lt;/script&gt;',
-      user_id: user.id
-    }
+      user_id: user.id,
+    },
   };
 }
 
@@ -299,33 +353,32 @@ function seedMaliciousHousehold(db, user, household) {
 
 //Creates a malicious task and its expected outcome.
 function makeMaliciousTask(user, household, member) {
-
   const mockTask = {
-    id: 1,
-    title: null,
-    household_id: household.id,
-    user_id: user.id,
-    member_id: member.id,
-    points: 10,
-    status: 'assigned'
-  },
+      id: 1,
+      title: null,
+      household_id: household.id,
+      user_id: user.id,
+      member_id: member.id,
+      points: 10,
+      status: 'assigned',
+    },
     maliciousString = 'A Foul Name <script>alert("xss");</script>',
     expectedString = 'A Foul Name &lt;script&gt;alert("xss");&lt;/script&gt;';
 
   return {
     maliciousTask: { ...mockTask, title: maliciousString },
-    expectedTask: { ...mockTask, title: expectedString }
+    expectedTask: { ...mockTask, title: expectedString },
   };
 }
 
 function seedMaliciousTask(db, user, household, member, task) {
   seedHouseholds(db, [user], [household])
     .then(() => {
-      return seedMembers(db, [member])
+      return seedMembers(db, [member]);
     })
     .then(() => {
-      return seedTasks(db, [task])
-    })
+      return seedTasks(db, [task]);
+    });
 }
 
 module.exports = {
@@ -344,9 +397,11 @@ module.exports = {
   makeHouseholdsArray,
   makeMembersArray,
   makeTasksArray,
+  makeLevelsArray,
+  makeLevelsMembers,
   makeFixtures,
 
   makeExpectedHousehold,
   makeExpectedHouseholdTask,
-  makeAuthHeader
+  makeAuthHeader,
 };
