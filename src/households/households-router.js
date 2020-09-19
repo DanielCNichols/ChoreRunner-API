@@ -240,82 +240,9 @@ householdsRouter
     } catch (error) {
       next(error);
     }
-  })
-
-  //ADDS A MEMBER TO A HOUSEHOLD
-  //!This is slow.
-  .post(jsonBodyParser, async (req, res, next) => {
-    const { password, username, name } = req.body;
-    const user_id = req.user.id;
-    const { householdId } = req.params;
-
-    for (const field of ['name', 'username', 'password'])
-      if (!req.body[field])
-        return res.status(400).json({
-          error: `Missing '${field}' in request body`,
-        });
-
-    try {
-      const passwordError = MembersService.validatePassword(password);
-
-      if (passwordError) return res.status(400).json({ error: passwordError });
-
-      const hasMemberwithMemberName = await HouseholdsService.hasMemberwithMemberName(
-        req.app.get('db'),
-        username
-      );
-
-      if (hasMemberwithMemberName)
-        return res.status(400).json({ error: `Username already taken` });
-
-      const hashedPassword = await HouseholdsService.hashPassword(password);
-
-      const newMember = {
-        username,
-        password: hashedPassword,
-        name,
-        household_id: householdId,
-        user_id,
-      };
-
-      const member = await HouseholdsService.insertMember(
-        req.app.get('db'),
-        newMember
-      );
-
-      //Set member level by adding their ID to the  levels_members table
-      //This must run after HouseholdService.insertMember, because we need the new member Id.
-      await HouseholdsService.setMemberLevel(req.app.get('db'), member.id);
-
-      //Get the newly added member, with level and points
-
-      let result = await HouseholdsService.getMemberById(
-        req.app.get('db'),
-        member.id
-      );
-
-      //set points to next level
-      result.pointsToNextLevel = 10;
-
-      res
-        .status(201)
-        .location(path.posix.join(req.originalUrl, `/${member.id}`))
-        .json(HouseholdsService.serializeMember(result));
-    } catch (error) {
-      next(error);
-    }
-  })
-  //delete members
-  //!Take a good look at this one and how the routes are laid out. Why do you need a household ID to delete a member? Why are we getting this id from the body and not the route? Gotta be a better way.
-  .delete(jsonBodyParser, (req, res, next) => {
-    const { member_id } = req.body;
-    HouseholdsService.deleteMember(req.app.get('db'), member_id)
-      .then(() => {
-        res.status(204).end();
-      })
-      .catch(next);
   });
 
+//!LOOK AT THIS. Should be a memberID patch
 householdsRouter
   .route('/:householdId/members/:memberId')
   .all(requireAuth)
@@ -413,30 +340,6 @@ householdsRouter
         household_id
       );
       res.status(201).json(newScores);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-//GET gets the members current level information
-//Post: Adds points and  updates levels/badges
-householdsRouter
-  .route('/:householdId/tasks/status/:taskId')
-  //The get requires member auth because it uses the token from the logged in member.
-  //This get grabs information for the currently logged in  member.
-  .get(requireMemberAuth, async (req, res, next) => {
-    const member_id = req.member.id;
-
-    try {
-      const userScores = await HouseholdsService.getLevels(
-        req.app.get('db'),
-        member_id
-      );
-
-      //show distance to next level
-      userScores.nextLevel = userScores.level_id * 10 - userScores.total_score;
-
-      res.status(201).send(userScores);
     } catch (error) {
       next(error);
     }

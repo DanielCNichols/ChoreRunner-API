@@ -1,4 +1,5 @@
 const { expect } = require('chai');
+const { expectCt } = require('helmet');
 const knex = require('knex');
 const supertest = require('supertest');
 const app = require('../src/app');
@@ -386,7 +387,7 @@ describe('Households Endpoints', function() {
         member_id: testMembers[0].id,
       };
 
-      it.only('successfully updates the task status to approved', async () => {
+      it('successfully updates the task status to approved', async () => {
         let res = await supertest(app)
           .patch(`/api/tasks/${taskId}/approve`)
           .set('Authorization', makeAuthHeader(testUser))
@@ -398,7 +399,7 @@ describe('Households Endpoints', function() {
         expect(res.body).to.have.property('toNextLevel');
       });
 
-      it.only('rejects marking complete if task does not exist', async () => {
+      it('rejects marking complete if task does not exist', async () => {
         let res = await supertest(app)
           .patch(`/api/tasks/80000/approve`)
           .set('Authorization', makeAuthHeader(testUser));
@@ -424,7 +425,7 @@ describe('Households Endpoints', function() {
     describe('Patch /:id/reject', () => {
       let taskId = testTasks[0].id;
 
-      it.only('successfully updates the task status to assigned', async () => {
+      it('successfully updates the task status to assigned', async () => {
         let res = await supertest(app)
           .patch(`/api/tasks/${taskId}/reject`)
           .set('Authorization', makeAuthHeader(testUser));
@@ -432,13 +433,101 @@ describe('Households Endpoints', function() {
         expect(res.body.status).to.eql('assigned');
       });
 
-      // it.only('rejects marking complete if task does not exist', async () => {
-      //   let res = await supertest(app)
-      //     .patch(`/api/tasks/80000/approve`)
-      //     .set('Authorization', makeAuthHeader(testUser));
+      it('rejects marking status assigned if task does not exist', async () => {
+        let res = await supertest(app)
+          .patch(`/api/tasks/80000/reject`)
+          .set('Authorization', makeAuthHeader(testUser));
 
-      //   expect(res.status).to.eql(404);
-      // });
+        expect(res.status).to.eql(404);
+      });
+    });
+  });
+
+  describe('/api/members/', () => {
+    beforeEach('seed members, users, tasks, and households', async () => {
+      await helpers.seedChoresTables(
+        db,
+        testUsers,
+        testHouseholds,
+        testMembers,
+        testTasks,
+        testLevels,
+        testLevels_members
+      );
+    });
+
+    describe('post api/members', () => {
+      let newMember = {
+        name: 'daniel',
+        username: 'daniel123',
+        password: 'Pass123',
+        household_id: 1,
+      };
+
+      it('creates a new member successfully', async () => {
+        let res = await supertest(app)
+          .post(`/api/members`)
+          .set('Authorization', makeAuthHeader(testUser))
+          .send(newMember);
+
+        console.log(res.body);
+
+        expect(res.body).to.have.property('id');
+        expect(res.body.name).to.eql(newMember.name);
+        expect(res.body.username).to.eql(newMember.username);
+        expect(res.body.total_score).to.eql(0);
+        expect(res.body.level_id).to.eql(1);
+        expect(res.body.pointsToNextLevel).to.eql(10);
+      });
+
+      let requiredFields = ['name', 'username', 'password', 'household_id'];
+
+      requiredFields.forEach(field => {
+        let botchedMember = { ...newMember };
+        delete botchedMember[field];
+        it(`rejects adding a new member and responds with 400 if ${field} is missing`, async () => {
+          let res = await supertest(app)
+            .post('/api/members')
+            .set('Authorization', makeAuthHeader(testUser))
+            .send(botchedMember);
+
+          expect(res.status).to.eql(400);
+          expect(res.body.error).to.eql(`Missing '${field}' in request body`);
+        });
+      });
+    });
+  });
+
+  describe('/api/members/:id', () => {
+    let memberId = testMembers[0].id;
+    beforeEach('seed members, users, tasks, and households', async () => {
+      await helpers.seedChoresTables(
+        db,
+        testUsers,
+        testHouseholds,
+        testMembers,
+        testTasks,
+        testLevels,
+        testLevels_members
+      );
+    });
+
+    describe('delete api/members/:id', () => {
+      it.only('deletes a member successfully', async () => {
+        let res = await supertest(app)
+          .delete(`/api/members/${memberId}`)
+          .set('Authorization', makeAuthHeader(testUser));
+
+        expect(res.status).to.eql(204);
+      });
+
+      it.only('rejects with 404 if member not found', async () => {
+        let res = await supertest(app)
+          .delete(`/api/members/${memberId}`)
+          .set('Authorization', makeAuthHeader(testUser));
+
+        expect(res.status).to.eql(204);
+      });
     });
   });
 });

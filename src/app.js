@@ -30,7 +30,7 @@ app.use('/api/users', userRouter);
 app.use('/api/households', householdsRouter);
 app.use('/api/membersAuth', membersAuthRouter);
 app.use('/api/tasks', tasksRouter);
-// app.use('/api/members', membersRouter);
+app.use('/api/members', membersRouter);
 
 app.use(function errorHandler(error, req, res, next) {
   let response;
