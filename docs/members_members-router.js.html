@@ -1,23 +1,43 @@
-const express = require('express');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: members/members-router.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: members/members-router.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const express = require('express');
+const HouseholdsService = require('../households/households-service');
 const { requireMemberAuth } = require('../middleware/member-jwt');
 const { requireAuth } = require('../middleware/jwt-auth');
 const path = require('path');
 const xss = require('xss');
 const MembersService = require('./members-service');
-const HouseholdsService = require('../households/households-service');
 
 const membersRouter = express.Router();
-const jsonBodyParser = express.json();
+const jsonBodyParser = express.json(); //move this to app.us();
 
-/**
- * POST '/'
- * Creates and returns a newly created member
- * @param {string} password
- * @param {string} username
- * @param {string} name
- * @param {number} household_id - a valid household Id
- * @param {number} id = user id (provided by auth middleware)
- */
+//Post: create a new memher
 membersRouter
   .route('/')
   .all(requireAuth)
@@ -26,7 +46,6 @@ membersRouter
       const { password, username, name, household_id } = req.body;
       const { id } = req.user;
 
-      //Validate inputs
       for (const field of ['name', 'username', 'password', 'household_id'])
         if (!req.body[field])
           return res.status(400).json({
@@ -39,7 +58,7 @@ membersRouter
         return res.status(400).json({ error: passwordError });
       }
 
-      const hasMemberwithMemberName = await MembersService.hasMemberwithMemberName(
+      const hasMemberwithMemberName = await HouseholdsService.hasMemberwithMemberName(
         req.app.get('db'),
         username
       );
@@ -48,9 +67,7 @@ membersRouter
         return res.status(400).json({ error: 'Username not available' });
       }
 
-      //If it passes the checks, then hash the password and prepare to insert into db.
-
-      const hashedPassword = await MembersService.hashPassword(password);
+      const hashedPassword = await HouseholdsService.hashPassword(password);
 
       const newMember = {
         username: xss(username),
@@ -60,15 +77,14 @@ membersRouter
         user_id: id,
       };
 
-      const member = await MembersService.insertMember(
+      const member = await HouseholdsService.insertMember(
         req.app.get('db'),
         newMember
       );
 
-      await MembersService.setMemberLevel(req.app.get('db'), member.id);
+      await HouseholdsService.setMemberLevel(req.app.get('db'), member.id);
 
-      //Get the newly created member and add pointsToNextLevel = 10.
-      let result = await MembersService.getMemberById(
+      let result = await HouseholdsService.getMemberById(
         req.app.get('db'),
         member.id
       );
@@ -84,11 +100,8 @@ membersRouter
     }
   });
 
-/**
- * DELETE '/:id'
- * Deletes the specified member, provided an authorized user is logged in.
- * @params {number} id = a valid member id
- */
+//TODO: check member exists
+
 membersRouter
   .route('/:id')
   .all(requireAuth)
@@ -97,54 +110,47 @@ membersRouter
     try {
       const { id } = req.params;
 
-      await MembersService.deleteMember(req.app.get('db'), id);
+      await HouseholdsService.deleteMember(req.app.get('db'), id);
       return res.status(204).end();
     } catch (error) {
       next(error);
     }
   })
 
-  /**
-   * Patch '/:d'
-   * Updates a selected member
-   * @param {string} name
-   * @param {username} username
-   * @param {password} password (optional)
-   *
-   */
+  //!you stopped here
   .patch(jsonBodyParser, async (req, res, next) => {
     const { name, username, password } = req.body;
     const { id } = req.params;
 
     try {
-      //validate user input
-      const userData = await MembersService.getMemberById(
+      //check to see that updated userName isn't a duplicate
+
+      const userData = await HouseholdsService.getMemberById(
         req.app.get('db'),
         id
       );
 
-      const hasMemberwithMemberName = await MembersService.hasMemberwithMemberName(
+      const hasMemberwithMemberName = await HouseholdsService.hasMemberwithMemberName(
         req.app.get('db'),
         username
       );
 
-      //Reject if username is already taken
-      if (username !== userData.username && hasMemberwithMemberName) {
+      if (username !== userData.username &amp;&amp; hasMemberwithMemberName) {
         return res.status(400).json({ error: `Username already taken.` });
       }
 
       let updatedMember;
 
-      //If the user is updating their password, hash the new password, else continue with the old password
       if (password) {
         //update password needs to be rehashed
-        const hashedPassword = await MembersService.hashPassword(password);
+        const hashedPassword = await HouseholdsService.hashPassword(password);
 
         updatedMember = { name, username, password: hashedPassword };
       } else {
         updatedMember = { name, username };
       }
 
+      //Check to see that there are actually values passed to be updated
       const numberOfValues = Object.values(updatedMember).filter(Boolean)
         .length;
 
@@ -154,9 +160,16 @@ membersRouter
         });
       }
 
-      await MembersService.updateMember(req.app.get('db'), id, updatedMember);
+      await HouseholdsService.updateMember(
+        req.app.get('db'),
+        id,
+        updatedMember
+      );
 
-      let updated = await MembersService.getMemberById(req.app.get('db'), id);
+      let updated = await HouseholdsService.getMemberById(
+        req.app.get('db'),
+        id
+      );
 
       return res.status(201).json(updated);
     } catch (error) {
@@ -164,17 +177,14 @@ membersRouter
     }
   });
 
-/**
- * GET '/:id/status'
- * Returns a member's level and score stats, assigned/completed tasks, and rankings in their household
- * @param {number} - a valid member id
- */
+//memberstatus
+//Returns information about the logged in member, their ranking, level info, and tasks.
 membersRouter
   .route('/:id/status')
   .all(requireMemberAuth)
   .get(async (req, res, next) => {
     try {
-      //Prepare queries for assigned and completed tasks
+      //Get all assignedTasks
       let getAssignedTasks = HouseholdsService.getAssignedTasks(
         req.app.get('db'),
         req.member.household_id,
@@ -188,18 +198,17 @@ membersRouter
       );
 
       //Get levels and badge for the badge component
-      let getUserStats = MembersService.getLevels(
+      let getUserStats = HouseholdsService.getLevels(
         req.app.get('db'),
         req.member.id
       );
 
-      //get information for ranings
+      //get leaderboard info
       let getRankings = HouseholdsService.getHouseholdScores(
         req.app.get('db'),
         req.member.household_id
       );
 
-      //execute queries
       let [
         assignedTasks,
         completedTasks,
@@ -212,7 +221,9 @@ membersRouter
         getRankings,
       ]);
 
-      //Calculate points to the next level based on use's current level and score.
+      /**
+       * Then this thing happens here
+       */
       if (userStats.level_id >= 10) {
         userStats.pointsToNextLevel = 'MAX';
       } else {
@@ -233,13 +244,16 @@ membersRouter
   });
 
 /**
- * Checks to see if a member exists. If not found, returns 404
+ * Checks to see if it exists
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
  */
 async function checkMemberExists(req, res, next) {
   try {
     const { id } = req.params;
 
-    let member = await MembersService.getMemberById(req.app.get('db'), id);
+    let member = await HouseholdsService.getMemberById(req.app.get('db'), id);
 
     if (!member) {
       return res.status(404).json({ error: 'Member not found' });
@@ -253,3 +267,26 @@ async function checkMemberExists(req, res, next) {
 }
 
 module.exports = membersRouter;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#checkHouseholdExists">checkHouseholdExists</a></li><li><a href="global.html#checkMemberExists">checkMemberExists</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Sun Sep 20 2020 12:22:01 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

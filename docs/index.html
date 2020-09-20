@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Home</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Home</h1>
+
+    
+
+
+
+    
+
+
+    <h3> </h3>
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+    <section>
+        <article><h1>ChoreRunner API 1.0</h1>
+<p>Authors: Daniel Nichols, Hubert Yang, Chitchanok Nancy Phiukhao, Yulia Khisamutdinova, Alexander Fukui</p>
+<p>This project was created using Express, Node, and PostgreSQL.</p>
+<p>Demo: https://enigmatic-waters-75582.herokuapp.com/</p>
+<h2>Tech stack</h2>
+<ul>
+<li>NodeJS</li>
+<li>Express</li>
+<li>PostgresQL</li>
+</ul>
+<h2>Set up</h2>
+<p>Complete the following steps to start a new project (NEW-PROJECT-NAME):</p>
+<ol>
+<li>Clone this repository to your local machine <code>git clone BOILERPLATE-URL NEW-PROJECTS-NAME</code></li>
+<li><code>cd</code> into the cloned repository</li>
+<li>Make a fresh start of the git history for this project with <code>rm -rf .git &amp;&amp; git init</code></li>
+<li>Install the node dependencies <code>npm install</code></li>
+<li>Move the example Environment file to <code>.env</code> that will be ignored by git and read by the express server <code>mv example.env .env</code></li>
+<li>Edit the contents of the <code>package.json</code> to use NEW-PROJECT-NAME instead of <code>&quot;name&quot;: &quot;express-boilerplate&quot;,</code></li>
+</ol>
+<h2>Scripts</h2>
+<p>Start the application <code>npm start</code></p>
+<p>Start nodemon for the application <code>npm run dev</code></p>
+<p>Run the tests <code>npm test</code></p>
+<h2>Deploying</h2>
+<p>When your new project is ready for deployment, add a new Heroku application with <code>heroku create</code>. This will make a new git remote called &quot;heroku&quot; and you can then <code>npm run deploy</code> which will push to this remote's master branch.</p>
+<hr>
+<h2>API Documentation</h2>
+<h3>Authorized Endpoints</h3>
+<p>All endpoints using the <code>requireAuth</code> middleware require a hashed bearer token in the header. A user should be logged in to use this endpoint appropriately, and most of these endpoints require this authorization. The server uses jsonwebtoken and bcryptjs to parse and encrypt this token to prevent data collisions and provide some security for the users.</p>
+<hr>
+<h3>Households</h3>
+<p>These endpoints manipulate the status of households, which group together family members. All require authorization.</p>
+<h4>GET api/households</h4>
+<p>Retrieves a list of households for a given parent. On success, returns an array of objects containing info for each household.</p>
+<pre class="prettyprint source lang-json"><code>//GET api/households
+//returns...
+[
+  {
+    &quot;id&quot;: 1,
+    &quot;name&quot;: &quot;Kamoshida Castle&quot;,
+    &quot;user_id&quot;: 1
+  },
+  {
+    &quot;id&quot; : 2,
+    &quot;name&quot;: &quot;Madarame Museum&quot;,
+    &quot;user_id&quot;: 1
+  }
+];
+</code></pre>
+<h4>POST api/households</h4>
+<p>The api creates a new household associated with the parent. It checks if the data contains a 'name' value. The new household is inserted into the database and assigned an id, then the API issues a response with a JSON object containing all households associated with the user, including the new one.</p>
+<pre class="prettyprint source lang-json"><code>//POST api/households
+//Body: {&quot;name&quot;: &quot;Kaneshiro Bank&quot;, &quot;user_id&quot;:&quot;1&quot;}
+//returns...
+[
+  {
+    &quot;id&quot;: 1,
+    &quot;name&quot;: &quot;Kamoshida Castle&quot;,
+    &quot;user_id&quot;: 1
+  },
+  {
+    &quot;id&quot; : 2,
+    &quot;name&quot;: &quot;Madarame Museum&quot;,
+    &quot;user_id&quot;: 1
+  },
+  {
+    &quot;id&quot; : 3,
+    &quot;name&quot;: &quot;Kaneshiro Bank&quot;,
+    &quot;user_id&quot;: 1
+  }
+];
+</code></pre>
+<h4>PATCH /api/households/:householdId</h4>
+<p>Given a valid message body, will update the household information, responding with a list of all the households, including the updated one.</p>
+<pre class="prettyprint source lang-json"><code>//PATCH api/households
+//Body: {&quot;id&quot;:&quot;1&quot;, &quot;name&quot;: &quot;Futaba Pyramid&quot;, &quot;user_id&quot;:&quot;1&quot;}
+//returns...
+[
+  {
+    &quot;id&quot;: 1,
+    &quot;name&quot;: &quot;Futaba Pyramid&quot;,
+    &quot;user_id&quot;: 1
+  },
+  {
+    &quot;id&quot; : 2,
+    &quot;name&quot;: &quot;Madarame Museum&quot;,
+    &quot;user_id&quot;: 1
+  },
+  {
+    &quot;id&quot; : 3,
+    &quot;name&quot;: &quot;Kaneshiro Bank&quot;,
+    &quot;user_id&quot;: 1
+  }
+];
+</code></pre>
+<h4>DELETE /api/households/:householdId</h4>
+<p>Given a valid household ID from a logged-in user, will delete the household, responding with a 204 status.</p>
+<hr>
+<h3>Members</h3>
+<p>These endpoints manipulate the status of household members. All require authorization.</p>
+<h4>GET api/households/:householdId/members</h4>
+<p>Provided a household id is included in the request params, it returns an array listing all members of the household, including their name, username and associated tasks.</p>
+<pre class="prettyprint source lang-json"><code>//GET api/households/1/members/
+[
+  {
+    &quot;id&quot;: 1,
+    &quot;name&quot;:&quot;Morgana&quot;,
+    &quot;username&quot;: &quot;mona&quot;,
+  },
+  {
+    &quot;id&quot;: 2,
+    &quot;name&quot;:&quot;Ryuji&quot;,
+    &quot;username&quot;: &quot;skull&quot;,
+  },
+  {
+    &quot;id&quot;: 3,
+    &quot;name&quot;:&quot;Ann&quot;,
+    &quot;username&quot;: &quot;panther&quot;,
+  }
+];
+</code></pre>
+<h4>POST api/households/:householdId/members</h4>
+<p>Adds a new member to the household by household ID, returning the full list of members.</p>
+<pre class="prettyprint source lang-json"><code>//POST api/households/1/members
+//Body: { &quot;name&quot;:&quot;Yusuke&quot;, &quot;username&quot;:&quot;fox&quot;, &quot;password&quot;:&quot;SecurePassword123!&quot; }
+//returns...
+[
+  {
+    &quot;id&quot;: 1,
+    &quot;name&quot;:&quot;Morgana&quot;,
+    &quot;username&quot;: &quot;mona&quot;,
+  },
+  {
+    &quot;id&quot;: 2,
+    &quot;name&quot;:&quot;Ryuji&quot;,
+    &quot;username&quot;: &quot;skull&quot;,
+  },
+  {
+    &quot;id&quot;: 3,
+    &quot;name&quot;:&quot;Ann&quot;,
+    &quot;username&quot;: &quot;panther&quot;,
+  },
+    {
+    &quot;id&quot;: 4,
+    &quot;name&quot;:&quot;Yusuke&quot;,
+    &quot;username&quot;: &quot;fox&quot;,
+  }
+];
+
+</code></pre>
+<h4>PATCH api/households/:householdId/members/:memberID</h4>
+<p>Provided a member id and a body with valid new information, updates the member's info and responds with the member's info.</p>
+<pre class="prettyprint source lang-json"><code>//PATCH api/households/1/members/1
+//Body: { &quot;name&quot;:&quot;Akechi&quot;, &quot;username&quot;:&quot;loki&quot; }
+//returns...
+[
+  {
+    &quot;id&quot;: 1,
+    &quot;name&quot;:&quot;Akechi&quot;,
+    &quot;username&quot;: &quot;loki&quot;,
+  }
+];
+
+</code></pre>
+<h4>DELETE api/households/:householdId/members/:memberID</h4>
+<p>Provided a member id, deletes the member and returns a 204 status.</p>
+<hr>
+<h3>Tasks</h3>
+<p>These endpoints manipulate the status of the tasks assigned to members.</p>
+<h4>GET api/households/:householdId/tasks</h4>
+<p>Provided a household id is included in the request params, it retrieves an array with the tasks for a given household. A task is associated with a household id, title, member_id representing who the task is assigned to, and point value to award the member upon completing the task.</p>
+<pre class="prettyprint source lang-json"><code>//GET api/households/1/tasks
+[
+  {
+    &quot;title&quot;: &quot;Make coffee and curry&quot;,
+    &quot;household_id&quot;: 1,
+    &quot;member_id&quot;: 3,
+    &quot;points&quot;: 20
+  },
+  {
+    &quot;title&quot;: &quot;Feed the plant&quot;,
+    &quot;household_id&quot;: 1,
+    &quot;member_id&quot;: 2,
+    &quot;points&quot;: 8
+  },
+  {
+    &quot;title&quot;: &quot;Take your time&quot;,
+    &quot;household_id&quot;: 1,
+    &quot;member_id&quot;: 1,
+    &quot;points&quot;: 8
+  },
+];
+</code></pre>
+<h4>POST api/households/:householdId/tasks</h4>
+<p>Provided a household id is included in the request params, it creates a new task for the household, responding with a 201 success message.</p></article>
+    </section>
+
+
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#checkHouseholdExists">checkHouseholdExists</a></li><li><a href="global.html#checkMemberExists">checkMemberExists</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Sun Sep 20 2020 12:22:01 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

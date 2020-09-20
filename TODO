@@ -1,10 +1,12 @@
+todo: 
+  ☐ Move tests into appropriate sections
+    ☐ make sure evertthing is clear
+    ☐ get rid of unneccessary logs
+    ☐ comment and params
+    ☐ consistency in error handling
 
-Working:
-  ☐ Auth Endpoints
-  ☐ Protected Endpoints
-  ☐ users endpoint
+  ☐ Handle errors on the front end. 
+  ☐ run all tests and build
+  ☐ write docs
+  ☐ deploy
 
-
-Not working: 
-  ☐ households '/'
-  ☐ tasks

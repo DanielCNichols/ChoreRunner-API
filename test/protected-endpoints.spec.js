@@ -3,10 +3,6 @@ const supertest = require('supertest');
 const app = require('../src/app');
 const helpers = require('./test-helpers');
 
-//rqquire MemberAuth
-//membersRouter/:id/statsu
-//tasksroute :id/complete
-
 describe('Protected endpoints', function() {
   let db;
 

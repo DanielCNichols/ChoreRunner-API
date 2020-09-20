@@ -1,4 +1,32 @@
-const express = require('express');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: households/households-router.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: households/households-router.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const express = require('express');
 const path = require('path');
 const { requireAuth } = require('../middleware/jwt-auth');
 const HouseholdsService = require('./households-service');
@@ -27,16 +55,16 @@ householdsRouter
     try {
       const user_id = req.user.id;
 
-      //Retrieving an array of households
       let households = await HouseholdsService.getAllHouseholds(
         req.app.get('db'),
         user_id
       );
+
       households.forEach((house, idx) => {
         return (households[idx] = serializeHousehold(house));
       });
 
-      //Creating a query to retrieve members in each house.
+      //get all the members in the household and append;
       let membersQueries = households.map(house => {
         return HouseholdsService.getMembersInHousehold(
           req.app.get('db'),
@@ -44,10 +72,8 @@ householdsRouter
         );
       });
 
-      //Promise.all returns the settled promises in the order they were given (i.e. the same order as households array)
       let members = await Promise.all(membersQueries);
 
-      //Appending the appropriate list of members to each house.
       households.forEach((house, idx) => {
         house.members = members[idx];
         house.members.forEach(member => {
@@ -61,7 +87,7 @@ householdsRouter
         });
       });
 
-      return res.status(200).send(households);
+      res.send(households);
     } catch (error) {
       next(error);
     }
@@ -74,16 +100,15 @@ householdsRouter
    * R
    */
   .post(jsonBodyParser, async (req, res, next) => {
+    const { name } = req.body;
+    const user_id = req.user.id;
+
+    if (!name)
+      return res.status(400).json({
+        error: `Missing name in request body`,
+      });
+
     try {
-      const { name } = req.body;
-      const user_id = req.user.id;
-
-      //Validdate input
-      if (!name)
-        return res.status(400).json({
-          error: `Missing name in request body`,
-        });
-
       const newHousehold = {
         name: xss(name),
         user_id,
@@ -157,16 +182,15 @@ householdsRouter
   .route('/:id/status')
   .all(requireAuth)
   .get(async (req, res, next) => {
+    const { id } = req.params;
     try {
-      const { id } = req.params;
-
-      //fetch our list of members for the household
       let membersList = await HouseholdsService.getMembersInHousehold(
         req.app.get('db'),
         id
       );
 
-      //Iterate over the membersList making queries for each member's tasks
+      //Iterate over the membersList, and make a call to append task list to the membersList.
+
       let assignedQueries = membersList.map(member => {
         return HouseholdsService.getAssignedTasks(
           req.app.get('db'),
@@ -175,19 +199,20 @@ householdsRouter
         );
       });
 
+      let status = 'completed';
+
       let completedQueries = membersList.map(member => {
         return HouseholdsService.getCompletedTasks(
           req.app.get('db'),
           id,
-          member.id
+          member.id,
+          status
         );
       });
 
-      //Execute the queries
       let assigned = await Promise.all(assignedQueries);
       let completed = await Promise.all(completedQueries);
 
-      //append the tasks to the member and calculate points to next level
       membersList.forEach((member, idx) => {
         member.assignedTasks = assigned[idx];
         member.completedTasks = completed[idx];
@@ -230,7 +255,6 @@ householdsRouter
         id
       );
 
-      //pull out the zeroed out scores from the returned promises
       let [, , newScores] = await Promise.all([
         resetScores,
         resetLevels,
@@ -245,6 +269,9 @@ householdsRouter
 
 /**
  *Checks to see if a household exists. Returns 404 if not found.
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
  */
 
 async function checkHouseholdExists(req, res, next) {
@@ -268,3 +295,26 @@ async function checkHouseholdExists(req, res, next) {
 }
 
 module.exports = householdsRouter;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#checkHouseholdExists">checkHouseholdExists</a></li><li><a href="global.html#checkMemberExists">checkMemberExists</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Sun Sep 20 2020 12:22:01 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

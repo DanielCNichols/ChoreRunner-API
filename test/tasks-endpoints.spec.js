@@ -1,290 +1,270 @@
-// const knex = require('knex');
-// const app = require('../src/app');
-// const helpers = require('./test-helpers');
+const { expect } = require('chai');
+const { expectCt } = require('helmet');
+const knex = require('knex');
+const supertest = require('supertest');
+const app = require('../src/app');
+const { getAssignedTasks } = require('../src/households/households-service');
+const {
+  seedHouseholds,
+  seedMembers,
+  makeAuthHeader,
+} = require('./test-helpers');
+const helpers = require('./test-helpers');
 
-// describe('Tasks Endpoints', () => {
-//   let db;
+describe('Tasks endpoints', () => {
+  let db;
 
-//   const {
-//     testUsers,
-//     testHouseholds,
-//     testMembers,
-//     testTasks
-//   } = helpers.makeFixtures();
+  const {
+    testUsers,
+    testHouseholds,
+    testMembers,
+    testTasks,
+    testLevels,
+    testLevels_members,
+  } = helpers.makeFixtures();
 
-//   const testUser = testUsers[0];
-//   const testMember = testMembers[0];
-//   const testHousehold = testHouseholds[0];
-//   const testTask = testTasks[0];
+  const testUser = testUsers[0];
 
-//   before('make knex instance', () => {
-//     db = knex({
-//       client: 'pg',
-//       connection: process.env.TEST_DATABASE_URL,
-//     });
-//     app.set('db', db);
-//   });
+  before('make knex instance', () => {
+    db = knex({
+      client: 'pg',
+      connection: process.env.TEST_DATABASE_URL,
+    });
+    app.set('db', db);
+  });
 
-//   before('cleanup', () => helpers.cleanTables(db));
-//   afterEach('cleanup', () => helpers.cleanTables(db));
-//   after('disconnect from db', () => db.destroy());
+  before('cleanup', () => helpers.cleanTables(db));
+  afterEach('cleanup', () => helpers.cleanTables(db));
+  after('disconnect from db', () => db.destroy());
+  describe('POST api/tasks', () => {
+    beforeEach('seed households, users, and members', async () => {
+      try {
+        await seedHouseholds(db, testUsers, testHouseholds);
+        await seedMembers(db, testMembers);
+      } catch (error) {
+        next(error);
+      }
+    });
 
-//   describe('GET /api/households/:householdId/tasks as authorized user', () => {
+    let newTask = {
+      title: 'testTask',
+      member_id: testMembers[0].id,
+      points: 1,
+      household_id: 1,
+    };
 
-//     context('No tasks for any members', () => {
-//       beforeEach('insert members but no tasks', () => {
-//         return helpers.seedChoresTables(
-//           db,
-//           testUsers,
-//           testHouseholds,
-//           testMembers
-//         );
-//       });
+    it('creates a new task successfully', async () => {
+      let res = await supertest(app)
+        .post(`/api/tasks`)
+        .set('Authorization', makeAuthHeader(testUser))
+        .send(newTask);
 
-//       it('responds with a 200 and an empty array', () => {
+      expect(res.body).to.have.property('id');
+    });
 
-//         return supertest(app)
-//           .get(`/api/households/${testHousehold.id}/tasks`)
-//           .set('Authorization', helpers.makeAuthHeader(testUser))
-//           .expect(200);
-//       });
+    it('removes xss content', async () => {
+      let malicious = { ...newTask, title: 'Why tho?<script>alert()</script>' };
+      let res = await supertest(app)
+        .post(`/api/tasks`)
+        .set('Authorization', makeAuthHeader(testUser))
+        .send(malicious);
 
-//     });
+      expect(res.body.title).to.eql(
+        'Why tho?&lt;script&gt;alert()&lt;/script&gt;'
+      );
+    });
 
-//     context('Some tasks for a member', () => {
-//       beforeEach('insert members and tasks', () => {
-//         return helpers.seedChoresTables(
-//           db,
-//           testUsers,
-//           testHouseholds,
-//           testMembers,
-//           testTasks
-//         );
-//       });
+    let wrongTask = { ...newTask };
 
-//       it('responds with a 204', () => {
+    Object.keys(wrongTask).forEach(field => {
+      it('rejects with 400 if name, points, or member_id is missing', async () => {
+        delete wrongTask[field];
 
-//         return supertest(app)
-//           .get(`/api/households/${testHousehold.id}/tasks`)
-//           .set('Authorization', helpers.makeAuthHeader(testUser))
-//           .expect(200)
-//           .expect(res => {
-//             expect(res.body).to.be.a('object');
-//           });
-//       });
-//     });
+        let res = await supertest(app)
+          .post(`/api/tasks`)
+          .set('Authorization', makeAuthHeader(testUser))
+          .send(wrongTask);
 
-//   });
+        expect(res.body.error.message).to.eql(
+          'Task name, points, and member are required.'
+        );
+      });
+    });
+  });
 
-//   describe('POST /api/households/:householdId/tasks as authorized user', () => {
+  describe('/api/tasks/:id', () => {
+    beforeEach('seed members, users, tasks, and households', async () => {
+      await helpers.seedChoresTables(
+        db,
+        testUsers,
+        testHouseholds,
+        testMembers,
+        testTasks
+      );
+    });
 
-//     beforeEach('insert members', () => {
-//       return helpers.seedChoresTables(
-//         db,
-//         testUsers,
-//         testHouseholds,
-//         testMembers,
-//       );
-//     });
+    describe('DELETE /tasks/:id', () => {
+      let householdId = testHouseholds[0].id;
+      let taskId = testTasks[0].id;
+      it('successfully deletes a task', async () => {
+        let res = await supertest(app)
+          .delete(`/api/tasks/${taskId}`)
+          .set('Authorization', makeAuthHeader(testUser));
 
-//     context(`Given when one request body is missing`, () => {
+        expect(res.status).to.eql(204);
+      });
 
-//       it(`responds with 400 'Missing task name, member id or points in request body' when title missing`, () => {
-//         const tasksMissingTitle = {
-//           member_id: 1,
-//           points: 5
-//         };
-//         return supertest(app)
-//           .post('/api/households/:id/tasks')
-//           .set('Authorization', helpers.makeAuthHeader(testUsers[0]))
-//           .send(tasksMissingTitle)
-//           .expect(400, { error: { message: 'Missing task name, member id or points in request body' } });
-//       });
+      it('rejects with 404 if task does not exist', async () => {
+        let res = await supertest(app)
+          .delete(`/api/tasks/90000`)
+          .set('Authorization', makeAuthHeader(testUser));
 
-//       it(`responds with 400 'Missing task name, member id or points in request body' when member_id missing`, () => {
-//         const tasksMissingMember = {
-//           title: 'title',
-//           points: 5
-//         };
-//         return supertest(app)
-//           .post('/api/households/:id/tasks')
-//           .set('Authorization', helpers.makeAuthHeader(testUsers[0]))
-//           .send(tasksMissingMember)
-//           .expect(400, { error: { message: 'Missing task name, member id or points in request body' } });
-//       });
+        expect(res.status).to.eql(404);
+      });
+    });
 
-//       it(`responds with 400 'Missing task name, member id or points in request body' when points missing`, () => {
-//         const tasksMissingPoints = {
-//           member_id: 1,
-//           title: 'title'
-//         };
-//         return supertest(app)
-//           .post('/api/households/:id/tasks')
-//           .set('Authorization', helpers.makeAuthHeader(testUsers[0]))
-//           .send(tasksMissingPoints)
-//           .expect(400, { error: { message: 'Missing task name, member id or points in request body' } });
-//       });
-//     });
+    describe('Patch /tasks/:taskId', () => {
+      let householdId = testHouseholds[0].id;
+      let taskId = testTasks[0].id;
 
-//     context(`Given when we have correct values in req.body`, () => {
+      let updatedTask = {
+        title: 'updated',
+        points: 11,
+      };
 
-//       it('responds with 201 when POSTs successfully', () => {
-//         const fullTaskBody = {
-//           title: 'test-title',
-//           member_id: 1,
-//           points: 5
-//         };
-//         const householdId = 1;
-//         return supertest(app)
-//           .post(`/api/households/${householdId}/tasks`)
-//           .set('Authorization', helpers.makeAuthHeader(testUsers[0]))
-//           .send(fullTaskBody)
-//           .expect(201)
-//           .expect(res => {
-//             expect(res.body.title).to.eql(fullTaskBody.title);
-//             expect(res.body.member_id).to.eql(fullTaskBody.member_id);
-//             expect(res.body.points).to.eql(fullTaskBody.points);
-//             expect(res.body).to.have.property('id');
-//             expect(res.headers.location).to.eql(`/api/households/${householdId}/tasks`);
-//           });
-//       });
+      it('successfully updates a task', async () => {
+        let res = await supertest(app)
+          .patch(`/api/tasks/${taskId}`)
+          .set('Authorization', makeAuthHeader(testUser))
+          .send(updatedTask);
 
-//       it('filters XSS content', () => {
-//         const {
-//           maliciousTask,
-//           expectedTask,
-//         } = helpers.makeMaliciousTask(testUser, testHousehold, testMember);
+        expect(res.body.title).to.eql(updatedTask.title);
+        expect(res.body.points).to.eql(updatedTask.points);
+      });
 
-//         return supertest(app)
-//           .post(`/api/households/${testHousehold.id}/tasks`)
-//           .set('Authorization', helpers.makeAuthHeader(testUser))
-//           .send(maliciousTask)
-//           .expect(201)
-//           .expect(res => {
-//             expect(res.body.title).to.eql(maliciousTask.title);
-//             expect(res.body.member_id).to.eql(maliciousTask.member_id);
-//             expect(res.body.points).to.eql(maliciousTask.points);
-//             expect(res.body).to.have.property('id');
-//             expect(res.headers.location).to.eql(`/api/households/${testHousehold.id}/tasks`);
-//           });
-//       });
-//     });
-//   });
+      let botchedUpdate = { ...updatedTask };
 
-//   describe('PATCH /api/households/:householdId/tasks as authorized user', () => {
-//     context('Given the task is in the database', () => {
-//       beforeEach('insert tasks', () => {
-//         return helpers.seedChoresTables(
-//           db,
-//           testUsers,
-//           testHouseholds,
-//           testMembers,
-//           [testTask]
-//         );
-//       });
+      Object.keys(botchedUpdate).forEach(field => {
+        delete botchedUpdate[field];
+        it('rejects with 400 when a field is missing', async () => {
+          let res = await supertest(app)
+            .patch(`/api/tasks/${taskId}`)
+            .set('Authorization', makeAuthHeader(testUser))
+            .send(botchedUpdate);
 
-//       context('Given the request include method:title', () => {
-//         it('responds with 204 and updates task title', () => {
-//           const updateTask = {
-//             id: testTask.id,
-//             method: 'title',
-//             title: 'testing',
-//             points: 90000
-//           };
+          expect(res.body.error).to.eql('Points and title are required');
+        });
+      });
+    });
+  });
 
-//           //Expected task maintains original points but updates title.
-//           const expectedTask = {
-//             id: testTask.id,
-//             title: updateTask.title,
-//             points: testTask.points
-//           };
+  describe('/api/tasks/:id/complete', () => {
+    beforeEach('seed members, users, tasks, and households', async () => {
+      await helpers.seedChoresTables(
+        db,
+        testUsers,
+        testHouseholds,
+        testMembers,
+        testTasks
+      );
+    });
 
-//           return supertest(app)
-//             .patch(`/api/households/${testHousehold.id}/tasks`)
-//             .set('Authorization', helpers.makeAuthHeader(testUser))
-//             .send(updateTask)
-//             .expect(200, 'title updated')
-//             .then(() =>
-//               supertest(app)
-//                 .get(`/api/households/${testHousehold.id}/tasks`)
-//                 .set('Authorization', helpers.makeAuthHeader(testUser))
-//                 .expect(res => {
-//                   expect(res.body).to.be.a('object');
-//                   expect(res.body[1].tasks).to.be.a('array');
-//                   expect(res.body[1].tasks[expectedTask.id - 1]).to.have.keys(['id', 'points', 'status', 'title']);
-//                   expect(res.body[1].tasks[expectedTask.id - 1].title).to.eql(expectedTask.title);
-//                   expect(res.body[1].tasks[expectedTask.id - 1].points).to.eql(expectedTask.points);
-//                 })
-//             );
-//         });
+    describe('Patch tasks/:id/complete', () => {
+      let taskId = testTasks[0].id;
+      let testMember = testMembers[0];
 
-//         it('can filter out an xss attack', () => {
+      it('successfully updates the task status to completed', async () => {
+        let res = await supertest(app)
+          .patch(`/api/tasks/${taskId}/complete`)
+          .set('Authorization', makeAuthHeader(testMember));
 
-//           const {
-//             maliciousTask,
-//             expectedTask,
-//           } = helpers.makeMaliciousTask(testUser, testHousehold, testMember);
+        expect(res.body.status).to.eql('completed');
+      });
 
-//           const updateTask = {
-//             id: testTask.id,
-//             method: 'title',
-//             title: maliciousTask.title
-//           };
+      it('rejects marking complete if task does not exist', async () => {
+        let res = await supertest(app)
+          .patch(`/api/tasks/80000/complete`)
+          .set('Authorization', makeAuthHeader(testMember));
 
-//           return supertest(app)
-//             .patch(`/api/households/${testHousehold.id}/tasks`)
-//             .set('Authorization', helpers.makeAuthHeader(testUser))
-//             .send(updateTask)
-//             .expect(200, 'title updated')
-//             .then(() =>
-//               supertest(app)
-//                 .get(`/api/households/${testHousehold.id}/tasks`)
-//                 .set('Authorization', helpers.makeAuthHeader(testUser))
-//                 .expect(res => {
-//                   expect(res.body[1].tasks[expectedTask.id - 1].title).to.eql(expectedTask.title);
-//                 })
-//             );
-//         });
+        expect(res.status).to.eql(404);
+      });
+    });
+  });
 
-//       });
+  describe('/api/tasks/:id/approve', () => {
+    beforeEach('seed members, users, tasks, and households', async () => {
+      await helpers.seedChoresTables(
+        db,
+        testUsers,
+        testHouseholds,
+        testMembers,
+        testTasks,
+        testLevels,
+        testLevels_members
+      );
+    });
 
-//       context('Given the request includes method:points', () => {
-//         it('responds with 204 and updates task points', () => {
+    describe('Patch /:id/approve', () => {
+      let taskId = testTasks[0].id;
+      let task = {
+        points: 2,
+        name: testMembers[0].name,
+        member_id: testMembers[0].id,
+      };
 
-//           const newPoints = testTask.points + 5;
+      it('successfully updates the task status to approved', async () => {
+        let res = await supertest(app)
+          .patch(`/api/tasks/${taskId}/approve`)
+          .set('Authorization', makeAuthHeader(testUser))
+          .send(task);
 
-//           const updateTask = {
-//             id: testTask.id,
-//             method: 'points',
-//             points: newPoints,
-//             title: 'I am breaking your server open like a coconut'
-//           };
+        expect(res.body).to.have.property('total_score');
+        expect(res.body).to.have.property('name');
+        expect(res.body).to.have.property('level_id');
+        expect(res.body).to.have.property('toNextLevel');
+      });
 
-//           const expectedTask = {
-//             id: testTask.id,
-//             title: testTask.title,
-//             points: updateTask.points,
-//           };
+      it('rejects marking complete if task does not exist', async () => {
+        let res = await supertest(app)
+          .patch(`/api/tasks/80000/approve`)
+          .set('Authorization', makeAuthHeader(testUser));
 
-//           return supertest(app)
-//             .patch(`/api/households/${testHousehold.id}/tasks`)
-//             .set('Authorization', helpers.makeAuthHeader(testUser))
-//             .send(updateTask)
-//             .expect(200, 'points updated')
-//             .then(() =>
-//               supertest(app)
-//                 .get(`/api/households/${testHousehold.id}/tasks`)
-//                 .set('Authorization', helpers.makeAuthHeader(testUser))
-//                 .expect(res => {
-//                   expect(res.body).to.be.a('object');
-//                   expect(res.body[1].tasks).to.be.a('array');
-//                   expect(res.body[1].tasks[expectedTask.id - 1]).to.have.keys(['id', 'points', 'status', 'title']);
-//                   expect(res.body[1].tasks[expectedTask.id - 1].points).to.eql(expectedTask.points);
-//                   expect(res.body[1].tasks[expectedTask.id - 1].title).to.eql(expectedTask.title);
-//                 })
-//             );
-//         });
-//       });
-//     });
-//   });
-// });
+        expect(res.status).to.eql(404);
+      });
+    });
+  });
+
+  describe('/api/tasks/:id/reject', () => {
+    beforeEach('seed members, users, tasks, and households', async () => {
+      await helpers.seedChoresTables(
+        db,
+        testUsers,
+        testHouseholds,
+        testMembers,
+        testTasks,
+        testLevels,
+        testLevels_members
+      );
+    });
+
+    describe('Patch tasks/:id/reject', () => {
+      let taskId = testTasks[0].id;
+
+      it('successfully updates the task status to assigned', async () => {
+        let res = await supertest(app)
+          .patch(`/api/tasks/${taskId}/reject`)
+          .set('Authorization', makeAuthHeader(testUser));
+
+        expect(res.body.status).to.eql('assigned');
+      });
+
+      it('rejects marking status assigned if task does not exist', async () => {
+        let res = await supertest(app)
+          .patch(`/api/tasks/80000/reject`)
+          .set('Authorization', makeAuthHeader(testUser));
+
+        expect(res.status).to.eql(404);
+      });
+    });
+  });
+});

@@ -2,15 +2,22 @@ const express = require('express');
 const path = require('path');
 const { requireAuth } = require('../middleware/jwt-auth');
 const { requireMemberAuth } = require('../middleware/member-jwt');
+const MemberService = require('../members/members-service');
 
 const xss = require('xss');
-//TODO: This will change in the refactor
-const HouseholdsService = require('../households/households-service');
-
+const TasksService = require('./tasks-service');
 const tasksRouter = express.Router();
 const jsonBodyParser = express.json(); //move this to app.us();
 
-//Post: Creates a new Task for a household
+/**
+ * Post '/'
+ * Creates a task and assigns to a member. Returns the task.
+ * @param {string} title
+ * @param {number} member_id - An id for the assignee
+ * @param {number} points
+ * @param {number} household_id - a valid houshold id
+ *
+ */
 tasksRouter
   .route('/')
   .all(requireAuth)
@@ -34,7 +41,7 @@ tasksRouter
 
     newTask.user_id = req.user.id;
 
-    HouseholdsService.insertTask(req.app.get('db'), newTask)
+    TasksService.insertTask(req.app.get('db'), newTask)
       .then(result => {
         res
           .status(201)
@@ -44,6 +51,10 @@ tasksRouter
       .catch(next);
   });
 
+/**
+ * Delete '/:id'
+ * Deletes the specified task, returning 204 if successful
+ */
 tasksRouter
   .route('/:id')
   .all(requireAuth)
@@ -51,12 +62,19 @@ tasksRouter
   .delete(async (req, res, next) => {
     try {
       const { id } = req.params;
-      await HouseholdsService.deleteTask(req.app.get('db'), id);
+      await TasksService.deleteTask(req.app.get('db'), id);
       res.status(204).end();
     } catch (error) {
       next(error);
     }
   })
+
+  /**
+   * PATCH '/:id/'
+   * Updates the specified task
+   * @param {number} points
+   * @param {string} title
+   */
   .patch(jsonBodyParser, async (req, res, next) => {
     try {
       let { points, title } = req.body;
@@ -73,11 +91,7 @@ tasksRouter
         points: xss(points),
       };
 
-      let task = await HouseholdsService.updateTask(
-        req.app.get('db'),
-        id,
-        updated
-      );
+      let task = await TasksService.updateTask(req.app.get('db'), id, updated);
 
       res.status(200).send(task);
     } catch (error) {
@@ -85,7 +99,11 @@ tasksRouter
     }
   });
 
-//Handle member clearing a task.
+/**
+ * PATCH ':id/complete'
+ * Updates a tasks status to 'completed' when it's assigned member marks it finished.
+ */
+
 tasksRouter
   .route('/:id/complete')
   .all(requireMemberAuth)
@@ -93,7 +111,7 @@ tasksRouter
   .patch(async (req, res, next) => {
     try {
       let { id } = req.params;
-      let task = await HouseholdsService.completeTask(
+      let task = await TasksService.completeTask(
         req.app.get('db'),
         req.member.id,
         req.member.household_id,
@@ -106,7 +124,13 @@ tasksRouter
     }
   });
 
-//handles parent approval/rejection
+/**
+   * Patch '/:id/approve'
+   * Handles task approval. Removes the task, updates the members points and level if necessary
+   * @param {number} points
+   * @parm {number} member_id- The member responsible for the task.
+
+   */
 tasksRouter
   .route('/:id/approve')
   .all(requireAuth)
@@ -116,37 +140,45 @@ tasksRouter
       const { points, member_id } = req.body;
       const { id } = req.params;
 
-      let updateTaskStatus = HouseholdsService.parentApproveTaskStatus(
+      //update the task status
+      let updateTaskStatus = TasksService.parentApproveTaskStatus(
         req.app.get('db'),
         id
       );
 
-      const { name, total_score, level_id } = await HouseholdsService.getLevels(
+      //get the member's current information
+      const { name, total_score, level_id } = await MemberService.getLevels(
         req.app.get('db'),
         member_id
       );
 
+      //calculate their new score, level, and points to the next level up
       let newScore = total_score + points;
       let newLevel = Math.floor(newScore / 10) + 1;
       let pointsToNextLevel = Math.abs((newScore % 10) - 10);
 
-      let scoreUpdate = HouseholdsService.updatePoints(
+      //prepare to update the score
+      let scoreUpdate = TasksService.updatePoints(
         req.app.get('db'),
         member_id,
         newScore
       );
 
+      //If their new level is more than their current level, and is less than 10 (max level), then update.
       let levelUpdate;
 
       if (newLevel > level_id && level_id <= 10 && newLevel <= 10) {
-        levelUpdate = HouseholdsService.updateLevel(
+        levelUpdate = TasksService.updateLevel(
           req.app.get('db'),
           member_id,
           newLevel
         );
       }
 
+      //Make the updates in the db
       await Promise.all([updateTaskStatus, scoreUpdate, levelUpdate]);
+
+      //If the member's level is maxed out, then return MAX
       if (newLevel >= 10) {
         pointsToNextLevel = 'MAX';
       } else if (pointsToNextLevel === 0) {
@@ -164,7 +196,10 @@ tasksRouter
     }
   });
 
-//handles parent rejecting the task
+/**
+ * PATCH '/:id/reject'
+ * Handles task rejection. Updates task status to assigned.
+ */
 tasksRouter
   .route('/:id/reject')
   .all(requireAuth)
@@ -172,7 +207,7 @@ tasksRouter
   .patch(jsonBodyParser, async (req, res, next) => {
     try {
       let { id } = req.params;
-      const task = await HouseholdsService.parentReassignTaskStatus(
+      const task = await TasksService.parentReassignTaskStatus(
         req.app.get('db'),
         id
       );
@@ -185,7 +220,7 @@ tasksRouter
 
 async function checkTaskExists(req, res, next) {
   try {
-    const task = await HouseholdsService.getTaskById(
+    const task = await TasksService.getTaskById(
       req.app.get('db'),
       req.params.id
     );

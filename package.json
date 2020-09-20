@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "debug": "nodemon --inspect src/server.js",
+    "docs": "jsdoc -c jsdoc.conf.json",
     "migrate": "postgrator --config postgrator-config.js",
     "migrate:production": "env SSL=true DATABASE_URL=$(heroku config:get DATABASE_URL) npm run migrate",
     "migrate:test": "set NODE_ENV=test&& npm run migrate",
