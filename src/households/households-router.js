@@ -130,8 +130,8 @@ householdsRouter
 householdsRouter
   .route('/:id/status')
   .all(requireAuth)
-  .get(requireAuth, async (req, res, next) => {
-    const { householdId: id } = req.params;
+  .get(async (req, res, next) => {
+    const { id } = req.params;
     try {
       let membersList = await HouseholdsService.getMembersInHousehold(
         req.app.get('db'),

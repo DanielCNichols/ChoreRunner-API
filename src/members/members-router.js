@@ -18,7 +18,6 @@ membersRouter
       const { password, username, name, household_id } = req.body;
       const { id } = req.user;
 
-
       for (const field of ['name', 'username', 'password', 'household_id'])
         if (!req.body[field])
           return res.status(400).json({
@@ -95,7 +94,7 @@ membersRouter
     const { name, username, password } = req.body;
     const { id } = req.params;
 
-\    try {
+    try {
       //check to see that updated userName isn't a duplicate
 
       const userData = await HouseholdsService.getMemberById(
