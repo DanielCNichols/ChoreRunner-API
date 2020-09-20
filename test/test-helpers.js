@@ -112,9 +112,9 @@ function makeTasksArray() {
       title: 'task2',
       household_id: 1,
       user_id: 1,
-      member_id: 2,
+      member_id: 1,
       points: 3,
-      status: 'assigned',
+      status: 'completed',
     },
     {
       id: 3,

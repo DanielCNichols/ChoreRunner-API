@@ -18,7 +18,6 @@ membersRouter
       const { password, username, name, household_id } = req.body;
       const { id } = req.user;
 
-      console.log('this is the userId', id);
 
       for (const field of ['name', 'username', 'password', 'household_id'])
         if (!req.body[field])
@@ -96,7 +95,7 @@ membersRouter
     const { name, username, password } = req.body;
     const { id } = req.params;
 
-    try {
+\    try {
       //check to see that updated userName isn't a duplicate
 
       const userData = await HouseholdsService.getMemberById(
@@ -113,11 +112,13 @@ membersRouter
         return res.status(400).json({ error: `Username already taken.` });
       }
 
+      let updatedMember;
+
       if (password) {
         //update password needs to be rehashed
         const hashedPassword = await HouseholdsService.hashPassword(password);
 
-        const updatedMember = { name, username, password: hashedPassword };
+        updatedMember = { name, username, password: hashedPassword };
       } else {
         updatedMember = { name, username };
       }
@@ -128,7 +129,7 @@ membersRouter
 
       if (numberOfValues === 0) {
         return res.status(400).json({
-          error: `Request must contain name, username, password, or household`,
+          error: `Request must contain name, username, password, and`,
         });
       }
 
@@ -144,6 +145,69 @@ membersRouter
       );
 
       return res.status(201).json(updated);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+//memberstatus
+//Returns information about the logged in member, their ranking, level info, and tasks.
+membersRouter
+  .route('/:id/status')
+  .all(requireMemberAuth)
+  .get(async (req, res, next) => {
+    try {
+      //Get all assignedTasks
+      let getAssignedTasks = HouseholdsService.getAssignedTasks(
+        req.app.get('db'),
+        req.member.household_id,
+        req.member.id
+      );
+
+      let getCompletedTasks = HouseholdsService.getCompletedTasks(
+        req.app.get('db'),
+        req.member.household_id,
+        req.member.id
+      );
+
+      //Get levels and badge for the badge component
+      let getUserStats = HouseholdsService.getLevels(
+        req.app.get('db'),
+        req.member.id
+      );
+
+      //get leaderboard info
+      let getRankings = HouseholdsService.getHouseholdScores(
+        req.app.get('db'),
+        req.member.household_id
+      );
+
+      let [
+        assignedTasks,
+        completedTasks,
+        userStats,
+        rankings,
+      ] = await Promise.all([
+        getAssignedTasks,
+        getCompletedTasks,
+        getUserStats,
+        getRankings,
+      ]);
+
+      if (userStats.level_id >= 10) {
+        userStats.pointsToNextLevel = 'MAX';
+      } else {
+        userStats.pointsToNextLevel = Math.abs(
+          (userStats.total_score % 10) - 10
+        );
+      }
+
+      res.status(200).send({
+        assignedTasks,
+        completedTasks,
+        userStats,
+        rankings,
+      });
     } catch (error) {
       next(error);
     }

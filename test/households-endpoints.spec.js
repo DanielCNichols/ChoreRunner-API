@@ -3,6 +3,7 @@ const { expectCt } = require('helmet');
 const knex = require('knex');
 const supertest = require('supertest');
 const app = require('../src/app');
+const { getAssignedTasks } = require('../src/households/households-service');
 const {
   seedHouseholds,
   seedMembers,
@@ -470,8 +471,6 @@ describe('Households Endpoints', function() {
           .set('Authorization', makeAuthHeader(testUser))
           .send(newMember);
 
-        console.log(res.body);
-
         expect(res.body).to.have.property('id');
         expect(res.body.name).to.eql(newMember.name);
         expect(res.body.username).to.eql(newMember.username);
@@ -513,7 +512,7 @@ describe('Households Endpoints', function() {
     });
 
     describe('delete api/members/:id', () => {
-      it.only('deletes a member successfully', async () => {
+      it('deletes a member successfully', async () => {
         let res = await supertest(app)
           .delete(`/api/members/${memberId}`)
           .set('Authorization', makeAuthHeader(testUser));
@@ -521,12 +520,94 @@ describe('Households Endpoints', function() {
         expect(res.status).to.eql(204);
       });
 
-      it.only('rejects with 404 if member not found', async () => {
+      it('rejects with 404 if member not found', async () => {
         let res = await supertest(app)
           .delete(`/api/members/${memberId}`)
           .set('Authorization', makeAuthHeader(testUser));
 
         expect(res.status).to.eql(204);
+      });
+    });
+
+    describe('Patch /api/members/:id', () => {
+      let memberId = testMembers[0].id;
+      let updatedMember = {
+        name: 'updated',
+        username: 'updated',
+        password: 'newPass',
+      };
+
+      it('updates a member successfully', async () => {
+        let res = await supertest(app)
+          .patch(`/api/members/${memberId}`)
+          .set('Authorization', makeAuthHeader(testUser))
+          .send(updatedMember);
+
+        expect(res.body.name).to.eql(updatedMember.name);
+      });
+    });
+  });
+
+  describe('/api/housholds/:id/scores', () => {
+    let household_id = testHouseholds[0].id;
+    beforeEach('seed members, users, tasks, and households', async () => {
+      await helpers.seedChoresTables(
+        db,
+        testUsers,
+        testHouseholds,
+        testMembers,
+        testTasks,
+        testLevels,
+        testLevels_members
+      );
+    });
+
+    describe('patch api/households/:id/scores', () => {
+      it('resets all scores for the household', async () => {
+        let res = await supertest(app)
+          .patch(`/api/households/${household_id}/scores`)
+          .set('Authorization', makeAuthHeader(testUser));
+
+        res.body.forEach(member => {
+          expect(member.total_score).to.eql(0);
+        });
+      });
+    });
+  });
+
+  describe('/api/members/status', () => {
+    beforeEach('seed members, users, tasks, and households', async () => {
+      await helpers.seedChoresTables(
+        db,
+        testUsers,
+        testHouseholds,
+        testMembers,
+        testTasks,
+        testLevels,
+        testLevels_members
+      );
+    });
+
+    describe('get api/members/account/status', () => {
+      let testMember = testMembers[0];
+      let id = testMember.id;
+      it('returns the members info, ranking, and tasks', async () => {
+        let res = await supertest(app)
+          .get(`/api/members/${id}/status`)
+          .set('Authorization', makeAuthHeader(testMember));
+
+        expect(res.body).to.have.property('assignedTasks');
+        expect(res.body.assignedTasks).to.be.an('array');
+        expect(res.body).to.have.property('completedTasks');
+        expect(res.body.assignedTasks).to.be.an('array');
+        expect(res.body).to.have.property('userStats');
+        expect(res.body.userStats).to.have.property('level_id');
+        expect(res.body.userStats).to.have.property('name');
+        expect(res.body.userStats).to.have.property('total_score');
+        expect(res.body.userStats).to.have.property('badge');
+        expect(res.body.userStats).to.have.property('pointsToNextLevel');
+        expect(res.body).to.have.property('rankings');
+        expect(res.body.rankings).to.be.an('array');
       });
     });
   });

@@ -10,6 +10,7 @@ const {
   serializeHousehold,
   serializeMember,
 } = require('./households-service');
+const tasksRouter = require('../tasks/tasks-router');
 
 const householdsRouter = express.Router();
 const jsonBodyParser = express.json();
@@ -89,13 +90,13 @@ householdsRouter
 //Delete: Removes a single group
 //Patch: Updates group name
 householdsRouter
-  .route('/:householdId')
+  .route('/:id')
   .all(requireAuth)
   .all(checkHouseholdExists)
   .delete(jsonBodyParser, (req, res, next) => {
-    const { householdId } = req.params;
+    const { id } = req.params;
 
-    HouseholdsService.deleteHousehold(req.app.get('db'), householdId)
+    HouseholdsService.deleteHousehold(req.app.get('db'), id)
       .then(() => {
         res.status(204).end();
       })
@@ -103,7 +104,7 @@ householdsRouter
   })
   .patch(jsonBodyParser, async (req, res, next) => {
     let user_id = req.user.id;
-    const { householdId } = req.params;
+    const { id } = req.params;
     const { name } = req.body;
     const newHousehold = { name: xss(name) };
     const db = req.app.get('db');
@@ -118,88 +119,23 @@ householdsRouter
 
     let [updated] = await HouseholdsService.updateHouseholdName(
       db,
-      householdId,
+      id,
       newHousehold
     );
 
-    res.send(updated);
+    return res.status(200).json(updated);
   });
 
-//Get: Retrieves all information for the memberDashboard.
-//!will use this for the time being, but this entire set up needs to be refactored
-//! This makes more sense as a /members/memberid/status
+//gets a list of all members in a household, their assigned/completed tasks, and their levels/info.
 householdsRouter
-  .route('/householdId/members/memberId/tasks')
-  .all(requireMemberAuth)
-  .get(async (req, res, next) => {
-    try {
-      //Get all assignedTasks
-      let getAssignedTasks = HouseholdsService.getAssignedTasks(
-        req.app.get('db'),
-        req.member.household_id,
-        req.member.id
-      );
-
-      let getCompletedTasks = HouseholdsService.getCompletedTasks(
-        req.app.get('db'),
-        req.member.household_id,
-        req.member.id
-      );
-
-      //Get levels and badge for the badge component
-      let getUserStats = HouseholdsService.getLevels(
-        req.app.get('db'),
-        req.member.id
-      );
-
-      //get leaderboard info
-      let getRankings = HouseholdsService.getHouseholdScores(
-        req.app.get('db'),
-        req.member.household_id
-      );
-
-      let [
-        assignedTasks,
-        completedTasks,
-        userStats,
-        rankings,
-      ] = await Promise.all([
-        getAssignedTasks,
-        getCompletedTasks,
-        getUserStats,
-        getRankings,
-      ]);
-
-      if (userStats.level_id >= 10) {
-        userStats.pointsToNextLevel = 'MAX';
-      } else {
-        userStats.pointsToNextLevel = Math.abs(
-          (userStats.total_score % 10) - 10
-        );
-      }
-
-      res.status(200).send({
-        assignedTasks,
-        completedTasks,
-        userStats,
-        rankings,
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-//!Keep this. gets info for the household page
-//!MOVE THIS INTO api/members!!
-householdsRouter
-  .route('/:householdId/members')
+  .route('/:id/status')
   .all(requireAuth)
   .get(requireAuth, async (req, res, next) => {
-    const { householdId } = req.params;
+    const { householdId: id } = req.params;
     try {
       let membersList = await HouseholdsService.getMembersInHousehold(
         req.app.get('db'),
-        householdId
+        id
       );
 
       //Iterate over the membersList, and make a call to append task list to the membersList.
@@ -207,7 +143,7 @@ householdsRouter
       let assignedQueries = membersList.map(member => {
         return HouseholdsService.getAssignedTasks(
           req.app.get('db'),
-          householdId,
+          id,
           member.id
         );
       });
@@ -217,7 +153,7 @@ householdsRouter
       let completedQueries = membersList.map(member => {
         return HouseholdsService.getCompletedTasks(
           req.app.get('db'),
-          householdId,
+          id,
           member.id,
           status
         );
@@ -242,104 +178,36 @@ householdsRouter
     }
   });
 
-//!LOOK AT THIS. Should be a memberID patch
+//!Keep this here
 householdsRouter
-  .route('/:householdId/members/:memberId')
+  .route('/:id/scores')
   .all(requireAuth)
+  .all(checkHouseholdExists)
   .patch(jsonBodyParser, async (req, res, next) => {
-    const { name, username, password } = req.body;
-    const { memberId } = req.params;
-
+    let { id } = req.params;
     try {
-      //check to see that updated userName isn't a duplicate
-
-      const userData = await HouseholdsService.getMemberById(
+      let resetScores = HouseholdsService.resetHouseholdScores(
         req.app.get('db'),
-        memberId
+        id
       );
 
-      const hasMemberwithMemberName = await HouseholdsService.hasMemberwithMemberName(
+      let resetLevels = HouseholdsService.resetHouseholdLevels(
         req.app.get('db'),
-        username
+        id
       );
 
-      if (username !== userData.username && hasMemberwithMemberName) {
-        return res.status(400).json({ error: `Username already taken.` });
-      }
-
-      if (password) {
-        //update password needs to be rehashed
-        const hashedPassword = await HouseholdsService.hashPassword(password);
-
-        const updatedMember = { name, username, password: hashedPassword };
-      } else {
-        updatedMember = { name, username };
-      }
-
-      //Check to see that there are actually values passed to be updated
-      const numberOfValues = Object.values(updatedMember).filter(Boolean)
-        .length;
-
-      if (numberOfValues === 0) {
-        return res.status(400).json({
-          error: `Request must contain name, username, password, or household`,
-        });
-      }
-
-      await HouseholdsService.updateMember(
+      let getScores = HouseholdsService.getHouseholdScores(
         req.app.get('db'),
-        memberId,
-        updatedMember
+        id
       );
 
-      let updated = await HouseholdsService.getMemberById(
-        req.app.get('db'),
-        memberId
-      );
+      let [, , newScores] = await Promise.all([
+        resetScores,
+        resetLevels,
+        getScores,
+      ]);
 
-      return res.status(201).json(updated);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-//FOR DELETING AND UPDATING A SINGLE HOUSEHOLD.
-
-//GET: GET SCORES FOR HOUSEHOLD => LEADERBOARD
-householdsRouter
-  .route('/household/scores')
-  .get(requireMemberAuth, (req, res, next) => {
-    HouseholdsService.getHouseholdScores(
-      req.app.get('db'),
-      req.member.household_id
-    )
-
-      .then(result => {
-        res.status(201).json(result);
-      })
-      .catch(next);
-  })
-
-  //RESET BUTTON ROUTE. RESET ALL THE SCORES AND LEVELS FOR EVERYONE IN A HOUSE.
-  .patch(requireAuth, jsonBodyParser, async (req, res, next) => {
-    let { household_id } = req.body;
-
-    try {
-      await HouseholdsService.resetHouseholdScores(
-        req.app.get('db'),
-        household_id
-      );
-
-      await HouseholdsService.resetHouseholdLevels(
-        req.app.get('db'),
-        household_id
-      );
-
-      const newScores = await HouseholdsService.getHouseholdScores(
-        req.app.get('db'),
-        household_id
-      );
-      res.status(201).json(newScores);
+      return res.status(201).json(newScores);
     } catch (error) {
       next(error);
     }
@@ -349,7 +217,7 @@ async function checkHouseholdExists(req, res, next) {
   try {
     const household = await HouseholdsService.getById(
       req.app.get('db'),
-      req.params.householdId
+      req.params.id
     );
 
     if (!household) {
