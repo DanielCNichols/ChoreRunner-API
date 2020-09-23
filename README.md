@@ -83,7 +83,7 @@ The api creates a new household associated with the parent. It requires a "name"
 
 ```json
 //POST api/households
-//Body: {"name": "Simpsons","
+//Body: {"name": "Simpsons"}
 //returns...
 
 {
@@ -130,18 +130,18 @@ Returns a list of members in a household, their completed and assigned tasks, as
             "points": "12",
             "status": "assigned",
             "id": "1",
-            "user_id": "1"
+            "user_id": "1",
             "member_id": "66"
           }
         ],
         "completedTasks": [
           {
             "title": "Feed santa's little helper",
-            "points": '5',
+            "points": "5",
             "status": "completed",
             "id": "2",
             "user_id": "1",
-            member_id: "66"
+            "member_id": "66"
           }
         ],
         "pointsToNextLevel": 10
@@ -189,12 +189,12 @@ The members route handles accessing and manipulating members and their current s
 Creates and returns a newly created member associated with the currently logged in user. . Requires a member name, username, password, and a household_id the member is associated with.
 
 ```json
-//body: {
-// password: 'pass123',
-// username: 'duffman2020',
-// name: 'duffman',
-// household_id: 58
-//  }
+body: {
+ "password": "pass123",
+ "username": "duffman2020",
+ "name": "duffman",
+ "household_id": "58"
+ }
 
 //response
 {
@@ -278,7 +278,7 @@ The tasks route handles creation, deletion, and updating of tasks, as well as ta
 Creates a task and assigns it to a member. Returns the newly completed task. Requires title, member_id, points, and household_id in the request body.
 
 ```json
-//Body: {title: 'pick up moe', member_id: 72, points: 20, household_id: 58}
+//Body: {"title": "pick up moe", "member_id": "72", "points": "20", "household_id": "58"}
 
 {
   "id": 170,
@@ -317,7 +317,7 @@ Used to update the specified task name and points. Reuqires a valid task id in t
 Handles task approval, removing the task, updating the appropriate member's points and level if necessary. Requires a valid task id in the request parameters, as well as points and member_id in the request body. Returns the updated member's scores and level information.
 
 ```json
-//Body: {points: 12, member_id: 72}
+//Body: {"points": "12", "member_id": "72"}
 
 {
   "level_id": 2,
