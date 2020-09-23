@@ -1,12 +1,11 @@
-# ChoreRunner API 1.0
+# ChoreRunner API 1.1
 
 Authors: Daniel Nichols, Hubert Yang, Chitchanok Nancy Phiukhao, Yulia Khisamutdinova, Alexander Fukui
 
 This project was created using Express, Node, and PostgreSQL.
 
-Demo: https://enigmatic-waters-75582.herokuapp.com/
-
 ## Tech stack
+
 - NodeJS
 - Express
 - PostgresQL
@@ -30,17 +29,11 @@ Start nodemon for the application `npm run dev`
 
 Run the tests `npm test`
 
-## Deploying
-
-When your new project is ready for deployment, add a new Heroku application with `heroku create`. This will make a new git remote called "heroku" and you can then `npm run deploy` which will push to this remote's master branch.
-
----
-
 ## API Documentation
 
 ### Authorized Endpoints
 
-All endpoints using the `requireAuth` middleware require a hashed bearer token in the header. A user should be logged in to use this endpoint appropriately, and most of these endpoints require this authorization. The server uses jsonwebtoken and bcryptjs to parse and encrypt this token to prevent data collisions and provide some security for the users.
+All endpoints using the `requireAuth` or `requireMemberAuth` middleware require a hashed bearer token in the header. A user/member should be logged in to use this endpoint appropriately, and most of these endpoints require this authorization. The server uses jsonwebtoken and bcryptjs to parse and encrypt this token to prevent data collisions and provide security for the users.
 
 ---
 
@@ -50,203 +43,318 @@ These endpoints manipulate the status of households, which group together family
 
 #### GET api/households
 
-Retrieves a list of households for a given parent. On success, returns an array of objects containing info for each household.
+Returns a list of all households for the logged in user, along iwth members in that household. Each household contains a list of members with details for each including their current score, level, and experience points needed to reach the next level.
 
 ```json
-//GET api/households
-//returns...
 [
   {
-    "id": 1,
-    "name": "Kamoshida Castle",
-    "user_id": 1
-  },
-  {
-    "id" : 2,
-    "name": "Madarame Museum",
-    "user_id": 1
+    "id": 58,
+    "name": "Simpsons",
+    "user_id": 1,
+    "members": [
+      {
+        "id": 66,
+        "name": "Bart",
+        "username": "bartman",
+        "user_id": 1,
+        "household_id": 58,
+        "total_score": 35,
+        "level_id": 4,
+        "pointsToNextLevel": 5
+      },
+      {
+        "id": 67,
+        "name": "Lisa",
+        "username": "saxmansTestifying",
+        "user_id": 1,
+        "household_id": 58,
+        "total_score": 0,
+        "level_id": 1,
+        "pointsToNextLevel": 10
+      }
+    ]
   }
-];
+]
 ```
 
 #### POST api/households
 
-The api creates a new household associated with the parent. It checks if the data contains a 'name' value. The new household is inserted into the database and assigned an id, then the API issues a response with a JSON object containing all households associated with the user, including the new one.
+The api creates a new household associated with the parent. It requires a "name" value to be passed in the request body. Returns the newly created household.
 
 ```json
 //POST api/households
-//Body: {"name": "Kaneshiro Bank", "user_id":"1"}
+//Body: {"name": "Simpsons","
 //returns...
-[
-  {
-    "id": 1,
-    "name": "Kamoshida Castle",
-    "user_id": 1
-  },
-  {
-    "id" : 2,
-    "name": "Madarame Museum",
-    "user_id": 1
-  },
-  {
-    "id" : 3,
-    "name": "Kaneshiro Bank",
-    "user_id": 1
-  }
-];
-```
 
-#### PATCH /api/households/:householdId
-
-Given a valid message body, will update the household information, responding with a list of all the households, including the updated one.
-
-```json
-//PATCH api/households
-//Body: {"id":"1", "name": "Futaba Pyramid", "user_id":"1"}
-//returns...
-[
-  {
-    "id": 1,
-    "name": "Futaba Pyramid",
-    "user_id": 1
-  },
-  {
-    "id" : 2,
-    "name": "Madarame Museum",
-    "user_id": 1
-  },
-  {
-    "id" : 3,
-    "name": "Kaneshiro Bank",
-    "user_id": 1
-  }
-];
+{
+  "id": 71,
+  "name": "Simpsons",
+  "user_id": 1,
+  "members": []
+}
 ```
 
 #### DELETE /api/households/:householdId
 
-Given a valid household ID from a logged-in user, will delete the household, responding with a 204 status.
+Deletes a household associated with the currently logged in user. Requires a valid Id in request parameters. Responds with 204 if successful.
 
----
+#### PATCH /api/households/:householdId
+
+Updates the name of a given household associated with the currently logged in user. Requires a valid id in request parameters. Responds with the updated household.
+
+```json
+{
+  "id": 72,
+  "name": "yeet",
+  "user_id": 1
+}
+```
+
+#### GET /api/households/:id/status
+
+Returns a list of members in a household, their completed and assigned tasks, as well as their current scores and levels. Requires a valid household Id.
+
+```json
+[
+    {
+        "id": 66,
+        "name": "Bart",
+        "username": "bartman",
+        "user_id": 1,
+        "household_id": 58,
+        "total_score": 0,
+        "level_id": 1,
+        "assignedTasks": [
+          {
+            "title": "Clean Room",
+            "points": "12",
+            "status": "assigned",
+            "id": "1",
+            "user_id": "1"
+            "member_id": "66"
+          }
+        ],
+        "completedTasks": [
+          {
+            "title": "Feed santa's little helper",
+            "points": '5',
+            "status": "completed",
+            "id": "2",
+            "user_id": "1",
+            member_id: "66"
+          }
+        ],
+        "pointsToNextLevel": 10
+    },
+    {
+        "id": 67,
+        "name": "Lisa",
+        "username": "saxmanTestifying",
+        "user_id": 1,
+        "household_id": 58,
+        "total_score": 0,
+        "level_id": 1,
+        "assignedTasks": [],
+        "completedTasks": [],
+        "pointsToNextLevel": 10
+    },
+]
+```
+
+#### PATCH api/housholds/:id/scores
+
+Handles resetting the scores and levels for all memebrs in a household. Returns members and their zero'd out scores.
+
+```json
+[
+  {
+    "id": 67,
+    "name": "Bart",
+    "total_score": 0
+  },
+  {
+    "id": 69,
+    "name": "Lisa",
+    "total_score": 0
+  }
+]
+```
 
 ### Members
 
-These endpoints manipulate the status of household members. All require authorization.
+The members route handles accessing and manipulating members and their current status. It requires authorization either as a parent user (requireAuth) or member (requireMemberAuth) where noted.
 
-#### GET api/households/:householdId/members
+#### Post api/members (requireAuth)
 
-Provided a household id is included in the request params, it returns an array listing all members of the household, including their name, username and associated tasks.
+Creates and returns a newly created member associated with the currently logged in user. . Requires a member name, username, password, and a household_id the member is associated with.
 
 ```json
-//GET api/households/1/members/
-[
-  {
-    "id": 1,
-    "name":"Morgana",
-    "username": "mona",
-  },
-  {
-    "id": 2,
-    "name":"Ryuji",
-    "username": "skull",
-  },
-  {
-    "id": 3,
-    "name":"Ann",
-    "username": "panther",
-  }
-];
+//body: {
+// password: 'pass123',
+// username: 'duffman2020',
+// name: 'duffman',
+// household_id: 58
+//  }
+
+//response
+{
+  "id": 72,
+  "name": "duffman",
+  "username": "duffman2020",
+  "household_id": 58,
+  "user_id": 1,
+  "total_score": 0,
+  "level_id": 1,
+  "pointsToNextLevel": 10
+}
 ```
 
-#### POST api/households/:householdId/members
+#### Delete api/members/:id (requireAuth)
 
-Adds a new member to the household by household ID, returning the full list of members.
+Deletes the specified member, provided a user is logged in. Requires a valid member id in the request parameters. Responds with 204 if successful.
+
+#### PATCH api/members/:id (requireAuth)
+
+Updates the specified member, provided a user is logged in. Returns the updated member.
 
 ```json
-//POST api/households/1/members
-//Body: { "name":"Yusuke", "username":"fox", "password":"SecurePassword123!" }
-//returns...
-[
-  {
-    "id": 1,
-    "name":"Morgana",
-    "username": "mona",
+{
+  "id": 72,
+  "name": "Homer",
+  "username": "Homer1234",
+  "user_id": 1,
+  "household_id": 58,
+  "total_score": 0,
+  "level_id": 1
+}
+```
+
+GET api/members/:id/status (requireMemberAuth)
+
+Returns the currently logged-in member's level, scores, assigned/completed tasks, and rankings in their household.
+
+```json
+{
+  "assignedTasks": [],
+  "completedTasks": [],
+  "userStats": {
+    "level_id": 1,
+    "name": "bart",
+    "total_score": 0,
+    "badge": "Badge1",
+    "pointsToNextLevel": 10
   },
-  {
-    "id": 2,
-    "name":"Ryuji",
-    "username": "skull",
-  },
-  {
-    "id": 3,
-    "name":"Ann",
-    "username": "panther",
-  },
+  "rankings": [
     {
-    "id": 4,
-    "name":"Yusuke",
-    "username": "fox",
-  }
-];
-
+      "id": 67,
+      "name": "lisa",
+      "total_score": 0
+    },
+    {
+      "id": 69,
+      "name": "maggie",
+      "total_score": 0
+    },
+    {
+      "id": 66,
+      "name": "homer",
+      "total_score": 0
+    },
+    {
+      "id": 72,
+      "name": "bart",
+      "total_score": 0
+    }
+  ]
+}
 ```
-
-#### PATCH api/households/:householdId/members/:memberID
-
-Provided a member id and a body with valid new information, updates the member's info and responds with the member's info.
-
-```json
-//PATCH api/households/1/members/1
-//Body: { "name":"Akechi", "username":"loki" }
-//returns...
-[
-  {
-    "id": 1,
-    "name":"Akechi",
-    "username": "loki",
-  }
-];
-
-```
-
-#### DELETE api/households/:householdId/members/:memberID
-
-Provided a member id, deletes the member and returns a 204 status.
-
----
 
 ### Tasks
 
-These endpoints manipulate the status of the tasks assigned to members.
+The tasks route handles creation, deletion, and updating of tasks, as well as task approval and rejection by a parent user. Access to these endpoints are restricted to either a logged in user (requireAuth) or member(requireMemberAuth) where noted.
 
-#### GET api/households/:householdId/tasks
+#### Post /api/tasks (requireAuth)
 
-Provided a household id is included in the request params, it retrieves an array with the tasks for a given household. A task is associated with a household id, title, member_id representing who the task is assigned to, and point value to award the member upon completing the task.
+Creates a task and assigns it to a member. Returns the newly completed task. Requires title, member_id, points, and household_id in the request body.
 
 ```json
-//GET api/households/1/tasks
-[
-  {
-    "title": "Make coffee and curry",
-    "household_id": 1,
-    "member_id": 3,
-    "points": 20
-  },
-  {
-    "title": "Feed the plant",
-    "household_id": 1,
-    "member_id": 2,
-    "points": 8
-  },
-  {
-    "title": "Take your time",
-    "household_id": 1,
-    "member_id": 1,
-    "points": 8
-  },
-];
+//Body: {title: 'pick up moe', member_id: 72, points: 20, household_id: 58}
+
+{
+  "id": 170,
+  "title": "get moe",
+  "household_id": 58,
+  "user_id": 1,
+  "member_id": 72,
+  "points": 20,
+  "status": "assigned"
+}
 ```
 
-#### POST api/households/:householdId/tasks
+#### DELETE /api/tasks/:id (requireAuth)
 
-Provided a household id is included in the request params, it creates a new task for the household, responding with a 201 success message.
+Deletes the specified task, returning 204 if successful. Requires a valid task id in the request parameters.
+
+#### PATCH /api/tasks/:id (requireAuth)
+
+Used to update the specified task name and points. Reuqires a valid task id in the request parameters, and points or title fields in the request body.
+
+```json
+//Body: {"title": "feed maggie", "points": 2}
+{
+  "id": 170,
+  "title": "get maggie",
+  "household_id": 58,
+  "user_id": 1,
+  "member_id": 72,
+  "points": 12,
+  "status": "assigned"
+}
+```
+
+#### PATCH /api/tasks/:id/approve (requireAuth)
+
+Handles task approval, removing the task, updating the appropriate member's points and level if necessary. Requires a valid task id in the request parameters, as well as points and member_id in the request body. Returns the updated member's scores and level information.
+
+```json
+//Body: {points: 12, member_id: 72}
+
+{
+  "level_id": 2,
+  "name": "Bart",
+  "total_score": 12,
+  "toNextLevel": 8
+}
+```
+
+#### PATCH /api/task/:id/reject (requireAuth)
+
+Handles rejecting a completed task, updating task status to "assigned". Requires a valid task id in the request parameters. Returns the updated task.
+
+```json
+{
+  "id": 171,
+  "title": "Get money",
+  "household_id": 58,
+  "user_id": 1,
+  "member_id": 72,
+  "points": 12,
+  "status": "assigned"
+}
+```
+
+#### PATCH /api/tasks/:id/complete (requireMemberAuth)
+
+Marks a task completed for the currently logged in member. Requires a valid task id in the request parameters. Note: this request will NOT update a member's score. All updates to the member's standings and ranking occur after a parent has approved the task. Returns the task.
+
+```json
+{
+  "id": 171,
+  "title": "Get money",
+  "household_id": 58,
+  "user_id": 1,
+  "member_id": 72,
+  "points": 12,
+  "status": "completed"
+}
+```

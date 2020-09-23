@@ -1,13 +1,8 @@
 const express = require('express');
-const path = require('path');
 const { requireAuth } = require('../middleware/jwt-auth');
 const HouseholdsService = require('./households-service');
 const xss = require('xss');
-const {
-  getAllMemberTasks,
-  serializeHousehold,
-  serializeMember,
-} = require('./households-service');
+const { serializeHousehold, serializeMember } = require('./households-service');
 
 const householdsRouter = express.Router();
 const jsonBodyParser = express.json();
@@ -17,7 +12,7 @@ const jsonBodyParser = express.json();
  */
 /**
  * Get '/'
- * Returns a list of all households for the logged in user, along with members in that households. Each household contains a list of members with details for each including their current score, level, and experience points needed to reach the next level.
+ * Returns a list of all households for the logged in user, along with members in that household. Each household contains a list of members with details for each including their current score, level, and experience points needed to reach the next level.
  */
 
 householdsRouter
@@ -27,7 +22,6 @@ householdsRouter
     try {
       const user_id = req.user.id;
 
-      //Retrieving an array of households
       let households = await HouseholdsService.getAllHouseholds(
         req.app.get('db'),
         user_id
@@ -36,7 +30,6 @@ householdsRouter
         return (households[idx] = serializeHousehold(house));
       });
 
-      //Creating a query to retrieve members in each house.
       let membersQueries = households.map(house => {
         return HouseholdsService.getMembersInHousehold(
           req.app.get('db'),
@@ -44,7 +37,6 @@ householdsRouter
         );
       });
 
-      //Promise.all returns the settled promises in the order they were given (i.e. the same order as households array)
       let members = await Promise.all(membersQueries);
 
       //Appending the appropriate list of members to each house.
@@ -78,7 +70,6 @@ householdsRouter
       const { name } = req.body;
       const user_id = req.user.id;
 
-      //Validdate input
       if (!name)
         return res.status(400).json({
           error: `Missing name in request body`,
@@ -166,7 +157,6 @@ householdsRouter
         id
       );
 
-      //Iterate over the membersList making queries for each member's tasks
       let assignedQueries = membersList.map(member => {
         return HouseholdsService.getAssignedTasks(
           req.app.get('db'),
@@ -183,7 +173,6 @@ householdsRouter
         );
       });
 
-      //Execute the queries
       let assigned = await Promise.all(assignedQueries);
       let completed = await Promise.all(completedQueries);
 
