@@ -4,6 +4,10 @@ Authors: Daniel Nichols, Hubert Yang, Chitchanok Nancy Phiukhao, Yulia Khisamutd
 
 This project was created using Express, Node, and PostgreSQL.
 
+- Live application: http://chorerunner-run.now.sh
+- Client repository: https://github.com/DanielCNichols/ChoreRunner-Client-
+
+
 ## Tech stack
 
 - NodeJS
