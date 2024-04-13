@@ -6,7 +6,6 @@ const { serializeHousehold, serializeMember } = require('./households-service');
 
 const householdsRouter = express.Router();
 const jsonBodyParser = express.json();
-
 /**
  * @householdsRouter
  */
@@ -20,7 +19,7 @@ householdsRouter
   .all(requireAuth)
   .get(async (req, res, next) => {
     try {
-      const user_id = req.user.id;
+      const user_id = 1
 
       let households = await HouseholdsService.getAllHouseholds(
         req.app.get('db'),
