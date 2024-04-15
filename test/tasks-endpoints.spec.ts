@@ -1,18 +1,22 @@
-const { expect } = require('chai');
-const { expectCt } = require('helmet');
-const knex = require('knex');
-const supertest = require('supertest');
-const app = require('../src/app');
-const { getAssignedTasks } = require('../src/households/households-service');
-const {
+import { expect } from 'chai'
+import knex from 'knex'
+import supertest from 'supertest'
+import app from '../src/app'
+import {
   seedHouseholds,
   seedMembers,
   makeAuthHeader,
-} = require('./test-helpers');
-const helpers = require('./test-helpers');
+  makeFixtures,
+  cleanTables,
+  seedChoresTables,
+  Task
+} from './test-helpers'
+
+
+
 
 describe('Tasks endpoints', () => {
-  let db;
+  let db: Knex;
 
   const {
     testUsers,
@@ -21,7 +25,7 @@ describe('Tasks endpoints', () => {
     testTasks,
     testLevels,
     testLevels_members,
-  } = helpers.makeFixtures();
+  } = makeFixtures();
 
   const testUser = testUsers[0];
 
@@ -33,8 +37,8 @@ describe('Tasks endpoints', () => {
     app.set('db', db);
   });
 
-  before('cleanup', () => helpers.cleanTables(db));
-  afterEach('cleanup', () => helpers.cleanTables(db));
+  before('cleanup', () => cleanTables(db));
+  afterEach('cleanup', () => cleanTables(db));
   after('disconnect from db', () => db.destroy());
   describe('POST api/tasks', () => {
     beforeEach('seed households, users, and members', async () => {
@@ -46,7 +50,7 @@ describe('Tasks endpoints', () => {
       }
     });
 
-    let newTask = {
+    const newTask = {
       title: 'testTask',
       member_id: testMembers[0].id,
       points: 1,
@@ -54,7 +58,7 @@ describe('Tasks endpoints', () => {
     };
 
     it('creates a new task successfully', async () => {
-      let res = await supertest(app)
+      const res = await supertest(app)
         .post(`/api/tasks`)
         .set('Authorization', makeAuthHeader(testUser))
         .send(newTask);
@@ -63,8 +67,8 @@ describe('Tasks endpoints', () => {
     });
 
     it('removes xss content', async () => {
-      let malicious = { ...newTask, title: 'Why tho?<script>alert()</script>' };
-      let res = await supertest(app)
+      const malicious = { ...newTask, title: 'Why tho?<script>alert()</script>' };
+      const res = await supertest(app)
         .post(`/api/tasks`)
         .set('Authorization', makeAuthHeader(testUser))
         .send(malicious);
@@ -74,13 +78,13 @@ describe('Tasks endpoints', () => {
       );
     });
 
-    let wrongTask = { ...newTask };
+    const wrongTask: Partial<Task> = { ...newTask };
 
     Object.keys(wrongTask).forEach(field => {
       it('rejects with 400 if name, points, or member_id is missing', async () => {
         delete wrongTask[field];
 
-        let res = await supertest(app)
+        const res = await supertest(app)
           .post(`/api/tasks`)
           .set('Authorization', makeAuthHeader(testUser))
           .send(wrongTask);
@@ -94,7 +98,7 @@ describe('Tasks endpoints', () => {
 
   describe('/api/tasks/:id', () => {
     beforeEach('seed members, users, tasks, and households', async () => {
-      await helpers.seedChoresTables(
+      await seedChoresTables(
         db,
         testUsers,
         testHouseholds,
@@ -104,10 +108,10 @@ describe('Tasks endpoints', () => {
     });
 
     describe('DELETE /tasks/:id', () => {
-      let householdId = testHouseholds[0].id;
-      let taskId = testTasks[0].id;
+      const householdId = testHouseholds[0].id;
+      const taskId = testTasks[0].id;
       it('successfully deletes a task', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .delete(`/api/tasks/${taskId}`)
           .set('Authorization', makeAuthHeader(testUser));
 
@@ -115,7 +119,7 @@ describe('Tasks endpoints', () => {
       });
 
       it('rejects with 404 if task does not exist', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .delete(`/api/tasks/90000`)
           .set('Authorization', makeAuthHeader(testUser));
 
@@ -124,16 +128,16 @@ describe('Tasks endpoints', () => {
     });
 
     describe('Patch /tasks/:taskId', () => {
-      let householdId = testHouseholds[0].id;
-      let taskId = testTasks[0].id;
+      const householdId = testHouseholds[0].id;
+      const taskId = testTasks[0].id;
 
-      let updatedTask = {
+      const updatedTask = {
         title: 'updated',
         points: 11,
       };
 
       it('successfully updates a task', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .patch(`/api/tasks/${taskId}`)
           .set('Authorization', makeAuthHeader(testUser))
           .send(updatedTask);
@@ -142,12 +146,12 @@ describe('Tasks endpoints', () => {
         expect(res.body.points).to.eql(updatedTask.points);
       });
 
-      let botchedUpdate = { ...updatedTask };
+      const botchedUpdate = { ...updatedTask };
 
       Object.keys(botchedUpdate).forEach(field => {
         delete botchedUpdate[field];
         it('rejects with 400 when a field is missing', async () => {
-          let res = await supertest(app)
+          const res = await supertest(app)
             .patch(`/api/tasks/${taskId}`)
             .set('Authorization', makeAuthHeader(testUser))
             .send(botchedUpdate);
@@ -160,7 +164,7 @@ describe('Tasks endpoints', () => {
 
   describe('/api/tasks/:id/complete', () => {
     beforeEach('seed members, users, tasks, and households', async () => {
-      await helpers.seedChoresTables(
+      await seedChoresTables(
         db,
         testUsers,
         testHouseholds,
@@ -170,11 +174,11 @@ describe('Tasks endpoints', () => {
     });
 
     describe('Patch tasks/:id/complete', () => {
-      let taskId = testTasks[0].id;
-      let testMember = testMembers[0];
+      const taskId = testTasks[0].id;
+      const testMember = testMembers[0];
 
       it('successfully updates the task status to completed', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .patch(`/api/tasks/${taskId}/complete`)
           .set('Authorization', makeAuthHeader(testMember));
 
@@ -182,7 +186,7 @@ describe('Tasks endpoints', () => {
       });
 
       it('rejects marking complete if task does not exist', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .patch(`/api/tasks/80000/complete`)
           .set('Authorization', makeAuthHeader(testMember));
 
@@ -193,7 +197,7 @@ describe('Tasks endpoints', () => {
 
   describe('/api/tasks/:id/approve', () => {
     beforeEach('seed members, users, tasks, and households', async () => {
-      await helpers.seedChoresTables(
+      await seedChoresTables(
         db,
         testUsers,
         testHouseholds,
@@ -205,15 +209,15 @@ describe('Tasks endpoints', () => {
     });
 
     describe('Patch /:id/approve', () => {
-      let taskId = testTasks[0].id;
-      let task = {
+      const taskId = testTasks[0].id;
+      const task = {
         points: 2,
         name: testMembers[0].name,
         member_id: testMembers[0].id,
       };
 
       it('successfully updates the task status to approved', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .patch(`/api/tasks/${taskId}/approve`)
           .set('Authorization', makeAuthHeader(testUser))
           .send(task);
@@ -225,7 +229,7 @@ describe('Tasks endpoints', () => {
       });
 
       it('rejects marking complete if task does not exist', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .patch(`/api/tasks/80000/approve`)
           .set('Authorization', makeAuthHeader(testUser));
 
@@ -236,7 +240,7 @@ describe('Tasks endpoints', () => {
 
   describe('/api/tasks/:id/reject', () => {
     beforeEach('seed members, users, tasks, and households', async () => {
-      await helpers.seedChoresTables(
+      await seedChoresTables(
         db,
         testUsers,
         testHouseholds,
@@ -248,10 +252,10 @@ describe('Tasks endpoints', () => {
     });
 
     describe('Patch tasks/:id/reject', () => {
-      let taskId = testTasks[0].id;
+      const taskId = testTasks[0].id;
 
       it('successfully updates the task status to assigned', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .patch(`/api/tasks/${taskId}/reject`)
           .set('Authorization', makeAuthHeader(testUser));
 
@@ -259,7 +263,7 @@ describe('Tasks endpoints', () => {
       });
 
       it('rejects marking status assigned if task does not exist', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .patch(`/api/tasks/80000/reject`)
           .set('Authorization', makeAuthHeader(testUser));
 

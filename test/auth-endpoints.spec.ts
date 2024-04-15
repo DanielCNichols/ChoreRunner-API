@@ -1,11 +1,21 @@
-const knex = require('knex');
-const app = require('../src/app');
-const jwt = require('jsonwebtoken');
-const helpers = require('./test-helpers');
-const config = require('../src/config');
+import knex, { Knex } from 'knex'
+import app from '../src/app'
+import jwt from 'jsonwebtoken'
+import * as helpers from './test-helpers'
+import config from '../src/config'
+import supertest from 'supertest'
 
-describe('Auth Endpoints', function() {
-  let db;
+//TODO: move these types somewhere else
+export type LoginBody = {
+  username: string
+  password: string
+}
+
+export type LoginFields = keyof LoginBody
+
+
+describe('Auth Endpoints', function () {
+  let db: Knex;
 
   const { testUsers } = helpers.makeFixtures();
   const testUser = testUsers[0];
@@ -27,10 +37,10 @@ describe('Auth Endpoints', function() {
   describe(`POST /api/auth/token`, () => {
     beforeEach('insert users', () => helpers.seedUsers(db, testUsers));
 
-    const requiredFields = ['username', 'password'];
+    const requiredFields: LoginFields[] = ['username', 'password'];
 
     requiredFields.forEach(field => {
-      const loginAttemptBody = {
+      const loginAttemptBody: LoginBody = {
         username: testUser.username,
         password: testUser.password,
       };

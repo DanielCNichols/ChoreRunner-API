@@ -1,9 +1,9 @@
-const knex = require('knex');
-const supertest = require('supertest');
-const app = require('../src/app');
-const helpers = require('./test-helpers');
+import knex from 'knex'
+import supertest from 'supertest';
+import app from '../src/app'
+import * as helpers from './test-helpers'
 
-describe('Protected endpoints', function() {
+describe('Protected endpoints', function () {
   let db;
 
   const {

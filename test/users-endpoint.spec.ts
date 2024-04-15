@@ -1,9 +1,10 @@
-const knex = require('knex');
-const app = require('../src/app');
-const helpers = require('./test-helpers');
+import knex from 'knex'
+import app from '../src/app'
+import * as helpers from './test-helpers'
 
+/* eslint-disable no-useless-escape */
 describe('Users Endpoints', () => {
-  let db;
+  let db: any;
 
   const {
     testUsers,
@@ -11,7 +12,7 @@ describe('Users Endpoints', () => {
     testMembers,
     testTasks
   } = helpers.makeFixtures();
-  
+
   const testUser = testUsers[0];
 
   before('Connect to DB before ALL tests', () => {
@@ -47,7 +48,7 @@ describe('Users Endpoints', () => {
       return supertest(app)
         .post('/api/users')
         .send(userMissingUser)
-        .expect(400, {error: 'Missing \'username\' in request body'});
+        .expect(400, { error: 'Missing \'username\' in request body' });
     });
 
     it('responds with 400 missing name if not supplied', () => {
@@ -58,7 +59,7 @@ describe('Users Endpoints', () => {
       return supertest(app)
         .post('/api/users')
         .send(userMissingFullName)
-        .expect(400, {error: 'Missing \'name\' in request body'});
+        .expect(400, { error: 'Missing \'name\' in request body' });
     });
 
     it('responds with 400 missing password if not supplied', () => {
@@ -69,7 +70,7 @@ describe('Users Endpoints', () => {
       return supertest(app)
         .post('/api/users')
         .send(userMissingPassword)
-        .expect(400, {error: 'Missing \'password\' in request body'});
+        .expect(400, { error: 'Missing \'password\' in request body' });
     });
 
     it('responds with 400 when password is less than 8 characters', () => {
@@ -81,7 +82,7 @@ describe('Users Endpoints', () => {
       return supertest(app)
         .post('/api/users')
         .send(newUser)
-        .expect(400, {error: 'Password must be longer than 8 characters'});
+        .expect(400, { error: 'Password must be longer than 8 characters' });
     });
 
     it('responds with 400 when password is longer than 72 characters', () => {
@@ -93,7 +94,7 @@ describe('Users Endpoints', () => {
       return supertest(app)
         .post('/api/users')
         .send(newUser)
-        .expect(400, {error: 'Password must be less than 72 characters'});
+        .expect(400, { error: 'Password must be less than 72 characters' });
     });
 
     it('responds with 400 when password does not contain at least one uppercase, lowercase, and number character', () => {
@@ -105,7 +106,7 @@ describe('Users Endpoints', () => {
       return supertest(app)
         .post('/api/users')
         .send(newUser)
-        .expect(400, {error: 'Password must contain one upper case, lower case, number and special character'});
+        .expect(400, { error: 'Password must contain one upper case, lower case, number and special character' });
     });
 
     it('respond with 400 when username is submitted that already exists', () => {
@@ -117,10 +118,10 @@ describe('Users Endpoints', () => {
       return supertest(app)
         .post('/api/users')
         .send(existingUser)
-        .expect(400, {error: 'Username already taken'});
+        .expect(400, { error: 'Username already taken' });
     });
 
-    it('returns 201 and adds a new user', () => { 
+    it('returns 201 and adds a new user', () => {
       const newUser = {
         username: 'test-user',
         name: 'Test User',
@@ -141,7 +142,7 @@ describe('Users Endpoints', () => {
 
     it('removes XSS attack content from response', () => {
       before('Insert users', () => {
-        helpers.seedUsers (
+        helpers.seedUsers(
           db,
           testUsers
         );

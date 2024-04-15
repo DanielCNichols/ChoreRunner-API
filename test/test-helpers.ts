@@ -1,7 +1,15 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import { Knex } from 'knex';
 
-function makeUsersArray() {
+export interface User {
+  id: number,
+  username: string,
+  password: string,
+  name: string
+}
+
+function makeUsersArray(): User[] {
   return [
     {
       id: 1,
@@ -30,7 +38,13 @@ function makeUsersArray() {
   ];
 }
 
-function makeHouseholdsArray() {
+export interface Household {
+  id: number,
+  name: string,
+  user_id: number
+}
+
+function makeHouseholdsArray(): Household[] {
   return [
     {
       id: 1,
@@ -55,7 +69,17 @@ function makeHouseholdsArray() {
   ];
 }
 
-function makeMembersArray() {
+export interface HouseholdMember {
+  id: number,
+  name: string,
+  username: string,
+  password: string,
+  user_id: number,
+  household_id: number,
+  total_score: number
+}
+
+function makeMembersArray(): HouseholdMember[] {
   return [
     {
       id: 1,
@@ -96,7 +120,23 @@ function makeMembersArray() {
   ];
 }
 
-function makeTasksArray() {
+export enum TaskStatus {
+  ASSIGNED = 'assigned',
+  COMPLETED = 'completed',
+  APPROVED = 'approved'
+}
+
+export interface Task {
+  id: number,
+  title: string,
+  household_id: number,
+  user_id: number,
+  member_id: number,
+  points: number,
+  status: TaskStatus,
+}
+
+function makeTasksArray(): Task[] {
   return [
     {
       id: 1,
@@ -105,7 +145,7 @@ function makeTasksArray() {
       user_id: 1,
       member_id: 1,
       points: 4,
-      status: 'assigned',
+      status: TaskStatus.ASSIGNED,
     },
     {
       id: 2,
@@ -114,7 +154,7 @@ function makeTasksArray() {
       user_id: 1,
       member_id: 1,
       points: 3,
-      status: 'completed',
+      status: TaskStatus.COMPLETED,
     },
     {
       id: 3,
@@ -123,7 +163,7 @@ function makeTasksArray() {
       user_id: 1,
       member_id: 3,
       points: 2,
-      status: 'completed',
+      status: TaskStatus.COMPLETED,
     },
     {
       id: 4,
@@ -132,12 +172,17 @@ function makeTasksArray() {
       user_id: 1,
       member_id: 4,
       points: 1,
-      status: 'approved',
+      status: TaskStatus.APPROVED,
     },
   ];
 }
 
-function makeLevelsArray() {
+export interface Level {
+  id: number,
+  badge: string
+}
+
+function makeLevelsArray(): Level[] {
   return [
     {
       id: 1,
@@ -154,7 +199,13 @@ function makeLevelsArray() {
   ];
 }
 
-function makeLevelsMembers() {
+export interface LevelMember {
+  id: number,
+  member_id: number,
+  level_id: number
+}
+
+function makeLevelsMembers(): LevelMember[] {
   return [
     {
       id: 1,
@@ -169,7 +220,7 @@ function makeLevelsMembers() {
   ];
 }
 
-function makeExpectedHousehold(users, household) {
+function makeExpectedHousehold(users: User[], household: Household) {
   const user = users.find(user => user.id === household.user_id);
 
   return {
@@ -180,7 +231,7 @@ function makeExpectedHousehold(users, household) {
   };
 }
 
-function makeExpectedHouseholdTask(users, householdId, tasks) {
+function makeExpectedHouseholdTask(users: User[], householdId: number, tasks: Task[]) {
   const expectedTasks = tasks.filter(task => task.id === householdId);
 
   return expectedTasks.map(task => {
@@ -199,7 +250,7 @@ function makeExpectedHouseholdTask(users, householdId, tasks) {
 
 /* -- Seeding -- */
 
-function seedUsers(db, users) {
+function seedUsers(db: Knex, users: User[]) {
   const preppedUsers = users.map(user => ({
     ...user,
     password: bcrypt.hashSync(user.password, 1),
@@ -214,7 +265,7 @@ function seedUsers(db, users) {
     );
 }
 
-function seedHouseholds(db, users, households) {
+function seedHouseholds(db: Knex, users: User[], households: Household[]) {
   return db.transaction(async trx => {
     await seedUsers(trx, users);
     await trx.into('households').insert(households);
@@ -225,7 +276,7 @@ function seedHouseholds(db, users, households) {
 }
 
 // This only works if seedUsers and seedHouseholds has been run.
-function seedMembers(db, members) {
+function seedMembers(db: Knex, members: HouseholdMember[]) {
   return db.transaction(async trx => {
     await trx.into('members').insert(members);
     await trx.raw(`SELECT setval('members_id_seq', ?)`, [
@@ -234,7 +285,7 @@ function seedMembers(db, members) {
   });
 }
 
-function seedTasks(db, tasks) {
+function seedTasks(db: Knex, tasks: Task[]) {
   return db.transaction(async trx => {
     await trx.into('tasks').insert(tasks);
     await trx.raw(`SELECT setval('tasks_id_seq', ?)`, [
@@ -245,14 +296,14 @@ function seedTasks(db, tasks) {
 
 function seedChoresTables(
   db,
-  users = [],
-  households = [],
-  members = [],
-  tasks = [],
-  levels = [],
-  levels_members = []
+  users: User[] = [],
+  households: Household[] = [],
+  members: HouseholdMember[] = [],
+  tasks: Task[] = [],
+  levels: Level[] = [],
+  levels_members: LevelMember[] = []
 ) {
-  return db.transaction(async trx => {
+  return db.transaction(async (trx: any) => {
     await trx.into('users').insert(users);
     await trx.raw(`SELECT setval('users_id_seq', ?)`, [
       users[users.length - 1].id,
@@ -294,8 +345,8 @@ function seedChoresTables(
   });
 }
 
-function cleanTables(db) {
-  return db.transaction(async trx => {
+function cleanTables(db: Knex) {
+  return db.transaction(async (trx: any) => {
     await trx.raw(`TRUNCATE tasks RESTART IDENTITY CASCADE`);
     await trx.raw(`TRUNCATE members RESTART IDENTITY CASCADE`);
     await trx.raw(`TRUNCATE households RESTART IDENTITY CASCADE`);
@@ -305,8 +356,8 @@ function cleanTables(db) {
   });
 }
 
-function makeAuthHeader(user, secret = process.env.JWT_SECRET) {
-  const token = jwt.sign({ user_id: user.id }, secret, {
+function makeAuthHeader(user: User, secret: string | undefined = process.env.JWT_SECRET) {
+  const token = jwt.sign({ user_id: user.id }, secret as string, {
     subject: user.username,
     algorithm: 'HS256',
   });
@@ -332,7 +383,7 @@ function makeFixtures() {
 
 /* ---XSS test helpers---*/
 
-function makeMaliciousHousehold(user) {
+function makeMaliciousHousehold(user: User) {
   return {
     maliciousHousehold: {
       id: 1,
@@ -347,21 +398,21 @@ function makeMaliciousHousehold(user) {
   };
 }
 
-function seedMaliciousHousehold(db, user, household) {
-  return this.seedHouseholds(db, [user], [household]);
+function seedMaliciousHousehold(db: Knex, user: User, household: Household) {
+  return seedHouseholds(db, [user], [household]);
 }
 
 //Creates a malicious task and its expected outcome.
-function makeMaliciousTask(user, household, member) {
+function makeMaliciousTask(user: User, household: Household, member: HouseholdMember) {
   const mockTask = {
-      id: 1,
-      title: null,
-      household_id: household.id,
-      user_id: user.id,
-      member_id: member.id,
-      points: 10,
-      status: 'assigned',
-    },
+    id: 1,
+    title: null,
+    household_id: household.id,
+    user_id: user.id,
+    member_id: member.id,
+    points: 10,
+    status: 'assigned',
+  },
     maliciousString = 'A Foul Name <script>alert("xss");</script>',
     expectedString = 'A Foul Name &lt;script&gt;alert("xss");&lt;/script&gt;';
 
@@ -371,7 +422,7 @@ function makeMaliciousTask(user, household, member) {
   };
 }
 
-function seedMaliciousTask(db, user, household, member, task) {
+function seedMaliciousTask(db: Knex, user: User, household: Household, member: HouseholdMember, task: Task) {
   seedHouseholds(db, [user], [household])
     .then(() => {
       return seedMembers(db, [member]);
@@ -381,7 +432,7 @@ function seedMaliciousTask(db, user, household, member, task) {
     });
 }
 
-module.exports = {
+export {
   cleanTables,
   seedUsers,
   seedHouseholds,
@@ -390,7 +441,6 @@ module.exports = {
   seedChoresTables,
   seedMaliciousHousehold,
   seedMaliciousTask,
-
   makeMaliciousHousehold,
   makeMaliciousTask,
   makeUsersArray,
@@ -400,7 +450,6 @@ module.exports = {
   makeLevelsArray,
   makeLevelsMembers,
   makeFixtures,
-
   makeExpectedHousehold,
   makeExpectedHouseholdTask,
   makeAuthHeader,

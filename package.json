@@ -9,7 +9,7 @@
     "migrate": "postgrator --config postgrator-config.js",
     "migrate:production": "env SSL=true DATABASE_URL=$(heroku config:get DATABASE_URL) yarn run migrate",
     "migrate:test": "cross-env NODE_ENV=test && yarn run migrate",
-    "test": "mocha --require test/setup.js",
+    "test": "ts-mocha test/*ts --require test/setup.js",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "predeploy": "yarn audit && yarn run migrate:production",
@@ -42,12 +42,24 @@
   "devDependencies": {
     "@commitlint/cli": "^19.2.1",
     "@commitlint/config-conventional": "^19.1.0",
+    "@eslint/js": "^9.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/chai": "^4.3.14",
+    "@types/express": "^4.17.21",
+    "@types/helmet": "^4.0.0",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/mocha": "^10.0.6",
+    "@types/supertest": "^6.0.2",
     "chai": "^4.2.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
     "husky": "^9.0.11",
     "mocha": "^10.4.0",
     "nodemon": "^3.1.0",
     "supertest": "^4.0.2",
+    "ts-mocha": "^10.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.6.0"
   }
 }

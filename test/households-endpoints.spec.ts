@@ -1,18 +1,11 @@
-const { expect } = require('chai');
-const { expectCt } = require('helmet');
-const knex = require('knex');
-const supertest = require('supertest');
-const app = require('../src/app');
-const { getAssignedTasks } = require('../src/households/households-service');
-const {
-  seedHouseholds,
-  seedMembers,
-  makeAuthHeader,
-} = require('./test-helpers');
-const helpers = require('./test-helpers');
+import knex, { Knex } from 'knex';
+import supertest from 'supertest';
+import app from '../src/app'
+import * as helpers from './test-helpers'
+import { expect } from 'chai';
 
 describe('Households Endpoints', function () {
-  let db;
+  let db: Knex;
 
   const {
     testUsers,

@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 const bcrypt = require('bcryptjs');
 const xss = require('xss');
 

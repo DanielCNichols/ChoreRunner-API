@@ -1,14 +1,8 @@
-const { expect } = require('chai');
-const { expectCt } = require('helmet');
-const knex = require('knex');
-const supertest = require('supertest');
-const app = require('../src/app');
-const { getAssignedTasks } = require('../src/households/households-service');
-const {
-  seedHouseholds,
-  seedMembers,
-  makeAuthHeader,
-} = require('./test-helpers');
+import knex from 'knex'
+import supertest from 'supertest'
+import app from '../src/app'
+import { makeAuthHeader } from './test-helpers';
+import { expect } from 'chai';
 const helpers = require('./test-helpers');
 
 describe('Members endpoints', () => {
@@ -51,7 +45,7 @@ describe('Members endpoints', () => {
     });
 
     describe('post api/members', () => {
-      let newMember = {
+      const newMember = {
         name: 'daniel',
         username: 'daniel123',
         password: 'Pass123',
@@ -59,7 +53,7 @@ describe('Members endpoints', () => {
       };
 
       it('creates a new member successfully', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .post(`/api/members`)
           .set('Authorization', makeAuthHeader(testUser))
           .send(newMember);
@@ -72,13 +66,13 @@ describe('Members endpoints', () => {
         expect(res.body.pointsToNextLevel).to.eql(10);
       });
 
-      let requiredFields = ['name', 'username', 'password', 'household_id'];
+      const requiredFields = ['name', 'username', 'password', 'household_id'];
 
       requiredFields.forEach(field => {
-        let botchedMember = { ...newMember };
+        const botchedMember = { ...newMember };
         delete botchedMember[field];
         it(`rejects adding a new member and responds with 400 if ${field} is missing`, async () => {
-          let res = await supertest(app)
+          const res = await supertest(app)
             .post('/api/members')
             .set('Authorization', makeAuthHeader(testUser))
             .send(botchedMember);
@@ -91,7 +85,7 @@ describe('Members endpoints', () => {
   });
 
   describe('/api/members/:id', () => {
-    let memberId = testMembers[0].id;
+    const memberId = testMembers[0].id;
     beforeEach('seed members, users, tasks, and households', async () => {
       await helpers.seedChoresTables(
         db,
@@ -106,7 +100,7 @@ describe('Members endpoints', () => {
 
     describe('delete api/members/:id', () => {
       it('deletes a member successfully', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .delete(`/api/members/${memberId}`)
           .set('Authorization', makeAuthHeader(testUser));
 
@@ -114,7 +108,7 @@ describe('Members endpoints', () => {
       });
 
       it('rejects with 404 if member not found', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .delete(`/api/members/${memberId}`)
           .set('Authorization', makeAuthHeader(testUser));
 
@@ -123,15 +117,15 @@ describe('Members endpoints', () => {
     });
 
     describe('Patch /api/members/:id', () => {
-      let memberId = testMembers[0].id;
-      let updatedMember = {
+      const memberId = testMembers[0].id;
+      const updatedMember = {
         name: 'updated',
         username: 'updated',
         password: 'newPass',
       };
 
       it('updates a member successfully', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .patch(`/api/members/${memberId}`)
           .set('Authorization', makeAuthHeader(testUser))
           .send(updatedMember);
@@ -142,7 +136,7 @@ describe('Members endpoints', () => {
   });
 
   describe('/api/housholds/:id/scores', () => {
-    let household_id = testHouseholds[0].id;
+    const household_id = testHouseholds[0].id;
     beforeEach('seed members, users, tasks, and households', async () => {
       await helpers.seedChoresTables(
         db,
@@ -157,7 +151,7 @@ describe('Members endpoints', () => {
 
     describe('patch api/households/:id/scores', () => {
       it('resets all scores for the household', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .patch(`/api/households/${household_id}/scores`)
           .set('Authorization', makeAuthHeader(testUser));
 
@@ -182,10 +176,10 @@ describe('Members endpoints', () => {
     });
 
     describe('get api/members/account/status', () => {
-      let testMember = testMembers[0];
-      let id = testMember.id;
+      const testMember = testMembers[0];
+      const id = testMember.id;
       it('returns the members info, ranking, and tasks', async () => {
-        let res = await supertest(app)
+        const res = await supertest(app)
           .get(`/api/members/${id}/status`)
           .set('Authorization', makeAuthHeader(testMember));
 
