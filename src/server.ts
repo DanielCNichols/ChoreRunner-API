@@ -1,8 +1,9 @@
-require('dotenv').config();
+import dotenv from 'dotenv'
+dotenv.config()
 
-const knex = require('knex');
-const app = require('./app');
-const { PORT, DATABASE_URL } = require('./config');
+import knex from 'knex'
+import app from './app'
+import {PORT, DATABASE_URL} from './config'
 
 const db = knex({
   client: 'pg',
