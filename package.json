@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "bin": {
+    "cdkapp": "bin/cdkapp.js"
+  },
   "scripts": {
     "debug": "nodemon --inspect src/server.js",
     "docs": "jsdoc -c jsdoc.conf.json",
@@ -14,7 +17,10 @@
     "dev": "nodemon src/server.ts",
     "predeploy": "yarn audit && yarn run migrate:production",
     "deploy": "git push heroku master",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk"
   },
   "keywords": [],
   "engines": {
@@ -37,7 +43,10 @@
     "postgrator": "^3.10.2",
     "postgrator-cli": "^3.3.0",
     "shortid": "^2.2.15",
-    "xss": "^1.0.8"
+    "xss": "^1.0.8",
+    "aws-cdk-lib": "2.139.0",
+    "constructs": "^10.0.0",
+    "source-map-support": "^0.5.21"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.2.1",
@@ -60,8 +69,13 @@
     "nodemon": "^3.1.0",
     "supertest": "^4.0.2",
     "ts-mocha": "^10.0.0",
+    "typescript-eslint": "^7.6.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "20.12.7",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "aws-cdk": "2.139.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.5",
-    "typescript-eslint": "^7.6.0"
+    "typescript": "~5.4.5"
   }
 }

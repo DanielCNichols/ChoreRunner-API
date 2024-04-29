@@ -2,3 +2,12 @@ node_modules
 .env
 dist
 *.d.ts
+
+*.js
+!jest.config.js
+*.d.ts
+node_modules
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
