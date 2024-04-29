@@ -1,8 +1,8 @@
 import knex, { Knex } from 'knex'
+import * as config from '../src/config'
 import app from '../src/app'
 import jwt from 'jsonwebtoken'
 import * as helpers from './test-helpers'
-import config from '../src/config'
 import supertest from 'supertest'
 
 //TODO: move these types somewhere else
