@@ -20,7 +20,8 @@
     "prepare": "husky",
     "build": "tsc",
     "watch": "tsc -w",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "dev-cdk": "yarn build && cdk synth --no-staging > template.yml"
   },
   "keywords": [],
   "engines": {
