@@ -14,17 +14,15 @@
     "migrate:test": "cross-env NODE_ENV=test && yarn run migrate",
     "test": "ts-mocha test/*ts --require test/setup.js",
     "start": "node src/server.ts",
-    "dev": "nodemon src/server.ts",
+    "build-dev": "node ./scripts/esbuild.watch.mjs &",
+    "synth": "cdk synth --no-staging > template.yml",
+    "dev": "yarn build-dev && yarn do && yarn synth && sam local start-api",
     "predeploy": "yarn audit && yarn run migrate:production",
     "deploy": "git push heroku master",
     "prepare": "husky",
     "build": "tsc",
     "watch": "tsc -w",
-    "cdk": "cdk",
-    "build-dev": "node ./scripts/esbuild.watch.mjs &",
-    "go": "yarn build-dev && yarn do && cdk synth --no-staging > template.yml && sam local start-api",
-    "do": "cdk synth --no-staging > template.yml",
-    "dev-cdk": "yarn build && cdk synth --no-staging > template.yml"
+    "cdk": "cdk"
   },
   "keywords": [],
   "engines": {
