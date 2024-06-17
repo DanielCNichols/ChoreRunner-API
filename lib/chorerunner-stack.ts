@@ -1,7 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Cors, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { HttpMethod } from 'aws-cdk-lib/aws-apigatewayv2';
-import { Code, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Code, Function, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import path from 'path';
@@ -18,9 +18,9 @@ export class ChoreRunnerStack extends cdk.Stack {
       },
     })
 
-    const helloLambda = new NodejsFunction(this, 'helloLambda', {
+    const helloLambda = new Function(this, 'helloLambda', {
       runtime: Runtime.NODEJS_20_X,
-      entry: path.join(__dirname, '..', 'src', 'helloLambda', 'index.ts'),
+      code: Code.fromAsset(path.join(__dirname, '..', 'dist', 'helloLambda')),
       handler: 'index.handler'
     })
 

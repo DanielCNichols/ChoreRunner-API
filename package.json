@@ -21,6 +21,9 @@
     "build": "tsc",
     "watch": "tsc -w",
     "cdk": "cdk",
+    "build-dev": "node ./scripts/esbuild.watch.mjs &",
+    "go": "yarn build-dev && yarn do && cdk synth --no-staging > template.yml && sam local start-api",
+    "do": "cdk synth --no-staging > template.yml",
     "dev-cdk": "yarn build && cdk synth --no-staging > template.yml"
   },
   "keywords": [],
