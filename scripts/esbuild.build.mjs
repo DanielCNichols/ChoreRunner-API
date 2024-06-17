@@ -29,15 +29,11 @@ function buildLambdas(sourceDir) {
 
   directories.forEach(dir => {
     const lambdaPath = path.join('src', dir, 'index.ts')
-    console.log('lambda path', lambdaPath)
-    console.log(dir)
 
     if (fs.existsSync(lambdaPath)) {
       //call build
-      console.log('building ' + lambdaPath)
+      console.log('building: ', lambdaPath)
       build(lambdaPath, dir)
-    } else {
-      console.log('Not a lambda directory. Skipping bundling')
     }
   })
 }
