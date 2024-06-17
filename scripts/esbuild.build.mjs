@@ -20,11 +20,10 @@ function build(path, outDir) {
 
 
 function buildLambdas(sourceDir) {
-  // if dist exists, get rid of it
-  if (fs.existsSync('./ dist')) {
-    fs.rmdirSync('./dist')
-  }
-
+  // if dis/* t exists, get rid of it
+  // if (fs.existsSync('./ dist')) {
+  //   fs.rmdirSync('./dist')
+  // }
   const directories = getDirectories(sourceDir)
 
   directories.forEach(dir => {
@@ -34,6 +33,8 @@ function buildLambdas(sourceDir) {
       //call build
       console.log('building: ', lambdaPath)
       build(lambdaPath, dir)
+    } else {
+      console.log('not a lambda directory: ', lambdaPath)
     }
   })
 }
