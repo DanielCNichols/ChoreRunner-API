@@ -20,10 +20,17 @@ function build(path, outDir) {
 
 
 function buildLambdas(sourceDir) {
+  // if dist exists, get rid of it
+  if (fs.existsSync('./ dist')) {
+    fs.rmdirSync('./dist')
+  }
+
   const directories = getDirectories(sourceDir)
 
   directories.forEach(dir => {
     const lambdaPath = path.join('src', dir, 'index.ts')
+    console.log('lambda path', lambdaPath)
+    console.log(dir)
 
     if (fs.existsSync(lambdaPath)) {
       //call build
@@ -35,4 +42,4 @@ function buildLambdas(sourceDir) {
   })
 }
 
-buildLambdas()
+buildLambdas('./src')
