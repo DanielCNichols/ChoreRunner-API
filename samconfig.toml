@@ -1,0 +1,10 @@
+version = 0.1
+
+[default]
+region = "us-east-1"
+
+[default.local_start_api.parameters]
+docker_network = "chorerunner-backend"
+
+[default.local_invoke.parameter]
+docker_network = "chorerunner-backend"

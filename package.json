@@ -17,7 +17,8 @@
     "build-dev": "nodemon --watch \"src/**\" --ext \".ts\" ./scripts/esbuild.build.mjs",
     "synth": "wait-on ./dist && cdk synth --no-staging > template.yml",
     "start-api": "sam local start-api",
-    "dev": "concurrently -n \"ESBUILD,SAM\" \"yarn build-dev\" \"yarn synth && yarn start-api\"",
+    "dynamo:up": "docker compose up -d dynamo",
+    "dev": "concurrently -n \"DOCKER,ESBUILD,SAM\" \"yarn dynamo:up\" \"yarn build-dev\" \"yarn synth && yarn start-api\"",
     "predeploy": "yarn audit && yarn run migrate:production",
     "deploy": "git push heroku master",
     "prepare": "husky",
@@ -32,6 +33,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.600.0",
     "aws-cdk-lib": "2.139.0",
     "bcryptjs": "^2.4.3",
     "cli": "^1.0.1",
