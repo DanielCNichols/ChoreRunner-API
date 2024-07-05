@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Cors, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { HttpMethod } from 'aws-cdk-lib/aws-apigatewayv2';
+import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { Code, Function, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
@@ -25,7 +26,16 @@ export class ChoreRunnerStack extends cdk.Stack {
     })
 
 
-    const helloPath = gateway.root.addResource('hello').addMethod('ANY', new LambdaIntegration(helloLambda))
+    gateway.root.addResource('hello').addMethod('ANY', new LambdaIntegration(helloLambda))
+
+    // TODO: encryption, deletion policy etc
+    const dynamoTable = new Table(this, 'test-table', {
+      partitionKey: { name: 'id', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      tableName: 'test-table'
+    })
+
+    dynamoTable.grantReadWriteData(helloLambda)
 
   }
 }
